@@ -4,25 +4,25 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import numpy
 from staff import schematisation
+from staff import draw
+from research import examples
 
 
 def test():
-    x = numpy.array([[0.0, 0.0],
-                     [1.0, 3.0],
-                     [2.0, 2.0],
-                     [3.0, 3.0],
-                     [4.0, 0.0]])
-    res = schematisation.merge(x, 1, 1.5)
-    print(res)
-    ans = numpy.array([[0.0, 0.0],
-                       [1.0, 3.0],
-                       [3.0, 3.0],
-                       [4.0, 0.0]])
-    print(ans)
+    rnd = 100 * numpy.random.rand(50)
+    data = []
+    for i in range(len(rnd)):
+        data.append([i, rnd[i]])
+    sch = schematisation.merge(data, 1, 10.0)
+    data = []
+    for i in range(len(sch)):
+        data.append(sch[i][1])
+    p = draw.Painter()
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    test()
+    # test()
+    examples.test5()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

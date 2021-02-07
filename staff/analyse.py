@@ -1,5 +1,5 @@
 import numpy
-
+from scipy import signal
 
 def frequencies(n, dt):
     f = numpy.zeros(n)
@@ -8,11 +8,9 @@ def frequencies(n, dt):
     return f[:int(n / 2)]
 
 
-def spectrum_density(x, k):
-    n = len(x)
-    xx = numpy.fft.fft(x) / n
-    g_xx = k * 2 * abs(xx) ** 2
-    return g_xx[:int(n / 2)]
+def spectrum_density(x, fs, nps):
+    f, g_xx = signal.csd(x, x, fs, window="boxcar", nperseg=nps)
+    return [f, g_xx]
 
 
 def n_coefficient(z):
@@ -23,18 +21,9 @@ def n_coefficient(z):
     return -1
 
 
-def cross_spectrum(x, y):
-    if len(x) != len(y):
-        return [-1, "Streams x and y have different sizes"]
-    n = len(x)
-    xx = numpy.fft.fft(x) / n
-    xx_ = numpy.zeros(n, dtype=complex)
-    for i in range(n):
-        xx_[i] = xx[i].conjugate()
-    yy = numpy.fft.fft(y) / n
-    g_xy = xx_ * yy
-    g_xy[1:] *= 2.0
-    return g_xy[:int(n / 2)]
+def cross_spectrum(x, y, fs, nps):
+    f, g_xy = signal.csd(x, y, fs, window="boxcar", nperseg=nps)
+    return [f, g_xy]
 
 
 def cross_spectrum_mod_fas(g_xy):
@@ -53,20 +42,6 @@ def cross_spectrum_mod_fas(g_xy):
     return [mod, fas]
 
 
-def coherent_coefficient(g_xy, g_xx, g_yy):
-    n = len(g_xy)
-    if len(g_xx) != n:
-        return [-1, "g_xx and g_xy have different sizes"]
-    if len(g_yy) != n:
-        return [-1, "g_yy and g_xy have different sizes"]
-    gama2_xy = numpy.zeros(n, dtype=float)
-    for i in range(n):
-        gama2_xy[i] = abs(g_xy[i]) ** 2 / abs(g_xx[i]) / abs(g_yy[i])
-    return gama2_xy
-
-
-def coherent_function(x, y):
-    g_xy = cross_spectrum(x, y)
-    g_xx = cross_spectrum(x, x)
-    g_yy = cross_spectrum(y, y)
-    return coherent_coefficient(g_xy, g_xx, g_yy)
+def coherent_function(x, y, fs, nps):
+    f, c_xy = signal.coherence(x, y, fs, nperseg=nps)
+    return[f, c_xy]

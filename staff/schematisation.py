@@ -12,11 +12,12 @@ def merge(x, ind, d):
         else:
             if len(buf) > 1:
                 res.append(buf[-1])
+                res.append(x[i])
             else:
                 res.append(x[i])
             buf = []
-            
-        if i == (len(x) - 1):
+
+        if i == (len(x) - 1) and len(buf) > 1:
             res.append(x[i])
 
     return res

@@ -11,8 +11,7 @@ class TestAnalyse(unittest.TestCase):
         f0 = 2.0
         a = 3.0
         x = a * numpy.cos(2 * numpy.pi * f0 * t)
-        f = analyse.frequencies(len(x), 0.01)
-        g = analyse.spectrum_density(x, 1.0)
+        f, g = analyse.spectrum_density(x)
         fm = f[numpy.where(g == max(g))][0]
         self.assertEqual((max(g) - a ** 2 / 2) < 1.0e-7 and (f0 - fm < 1.0e-7), True,
                          "phase or spectrum density failed")
@@ -23,8 +22,7 @@ class TestAnalyse(unittest.TestCase):
         a = 3.0
         x = a * numpy.cos(2 * numpy.pi * f0 * t)
         xr = prepare.correction(prepare.smoothing(x, 3), 2)
-        f = analyse.frequencies(len(x), 0.01)
-        g = analyse.spectrum_density(xr, 8.0 / 3)
+        f, g = analyse.spectrum_density(xr)
         fm = f[numpy.where(g == max(g))][0]
         self.assertEqual((max(g) - a ** 2 / 2) < 1.0e-7 and (f0 - fm < 1.0e-7), True,
                          "phase or spectrum density failed")

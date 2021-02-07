@@ -32,13 +32,15 @@ def test2():
 
 
 def test3():
-    t = numpy.arange(0, 10.0, 0.01)
+    fs = 1e3
+    n = 1e4
+    t = numpy.arange(n) / fs
     f0 = 4.0
     f1 = 25.0
     x = 3.0 * numpy.cos(2 * numpy.pi * f0 * t) + 5.0 * numpy.cos(2 * numpy.pi * f1 * t)
-    f = analyse.frequencies(len(x), 0.01)
-    g = analyse.spectrum_density(x, 1.0)
-    g_xx = analyse.cross_spectrum(x, x)
+    # x = numpy.random.standard_normal(size=len(t))
+    f, g = analyse.spectrum_density(x, fs, 150)
+    _, g_xx = analyse.cross_spectrum(x, x, fs, 150)
     p = draw.Painter()
     p.draw(f, [g], ["spectrum density"], ["frequencies", "spectrum density"])
 
@@ -46,30 +48,37 @@ def test3():
 
 
 def test4():
-    t = numpy.arange(0, 10.0, 0.01)
+    fs = 1e3
+    n = 1e4
+    t = numpy.arange(n) / fs
     f0 = 12.0
     f1 = 4.0
     x = 3.0 * numpy.cos(2 * numpy.pi * f0 * t)
     y = 4.0 * numpy.cos(2 * numpy.pi * f1 * t) + numpy.cos(2 * numpy.pi * f0 * t + numpy.pi / 4)
-    f = analyse.frequencies(len(x), 0.01)
-    g = analyse.cross_spectrum(x, y)
+    f, g = analyse.cross_spectrum(x, y, fs, len(t))
     [mod, fas] = analyse.cross_spectrum_mod_fas(g)
     p = draw.Painter()
     p.draw_n(f, [mod, fas], ["Module", "Phase"], ["frequencies"])
+    print(f[120])
+    print(mod[120])
+    print(fas[120])
 
 
 def test5():
-    t = numpy.arange(0, 10.0, 0.005)
+    fs = 1e3
+    n = 1e4
+    t = numpy.arange(n) / fs
     f0 = 12.0
     f1 = 4.0
-    x = 3.0 * numpy.cos(2 * numpy.pi * f0 * t)
-    y = 4.0 * numpy.sin(2 * numpy.pi * f1 * t) + numpy.cos(2 * numpy.pi * f0 * t + numpy.pi / 4)
-    f = analyse.frequencies(len(x), 0.005)
-    g = analyse.coherent_function(x, y)
-    g_xy = analyse.cross_spectrum(x, y)
-    g_xx = analyse.cross_spectrum(x, x)
-    g_yy = analyse.cross_spectrum(y, y)
+    x = 3.0 * numpy.cos(2 * numpy.pi * f0 * t) + 20 * numpy.random.standard_normal(size=len(t))
+    y = 4.0 * numpy.sin(2 * numpy.pi * f1 * t) + 2 * numpy.cos(2 * numpy.pi * f0 * t)
+    f, g = analyse.coherent_function(x, y, fs, 1024)
+    _, g_xy = analyse.cross_spectrum(x, y, fs, 1024)
+    _, g_xx = analyse.cross_spectrum(x, x, fs, 1024)
+    _, g_yy = analyse.cross_spectrum(y, y, fs, 1024)
     p = draw.Painter()
+    p.draw_n(t, [x, y], ["x", "y"],
+             ["time", "input"])
     p.draw_n(f, [abs(g_xy), abs(g_xx), abs(g_yy), g], ["cross_xy", "cross_xx", "cross_yy", "coherent_coef"],
              ["frequencies"], 1)
     p.draw(f, [g], ["coherent coefficient"], ["frequencies", "coherent_coef"], 1)
