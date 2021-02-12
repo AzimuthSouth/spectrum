@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy
 
 
 class Painter:
@@ -33,3 +34,28 @@ class Painter:
             self.ax2[i].set_xlabel(axes[0])
             self.ax2[i].set_ylabel(name[i])
         plt.show()
+
+    def draw_uncommon(self, x, data, xname, yname, leg):
+        self.fig, self.ax = plt.subplots()
+        self.ax.grid()
+        self.ax.set(xlabel=xname, ylabel=yname)
+        for i in range(len(data)):
+            self.ax.plot(x[i], data[i])
+        plt.legend(leg, loc="upper center")
+        plt.show()
+
+    def draw_classes(self, x, delta, xname, yname):
+        self.fig, self.ax = plt.subplots()
+        self.ax.set(xlabel=xname, ylabel=yname)
+        self.ax.plot(x[:, 0], x[:, 1])
+        xmean = numpy.mean(x[:, 1])
+        xx = [x[0, 0], x[-1, 0]]
+        for i in range(len(delta)):
+            self.ax.plot(xx, [delta[i], delta[i]], "r")
+        self.ax.plot(xx, [xmean, xmean], "y")
+        # self.ax.plot(xx, [0.0, 0.0], "b")
+
+        plt.show()
+
+
+
