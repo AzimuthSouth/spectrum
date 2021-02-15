@@ -3,10 +3,13 @@ import numpy
 
 def smoothing(data, k):
     res = []
+    mn = numpy.mean(data)
     for i in range(len(data) - k + 1):
         xi = data[i:k + i]
         res.append(data[i] - numpy.mean(xi))
+    # rest of data centering with mean of data
     tail = data[len(data) - k + 1: len(data)]
+    tail -= mn
     res = numpy.concatenate((res, tail))
     return res
 

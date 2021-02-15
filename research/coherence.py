@@ -2,7 +2,7 @@ from scipy import signal
 import numpy as np
 import matplotlib.pyplot as plt
 
-fs = 1e2
+fs = 1.02e2
 N = 1e4
 amp = 200
 freq = 1234.0
@@ -17,13 +17,16 @@ y = signal.lfilter(b, a, x)
 x += amp*np.sin(2*np.pi*freq*time)
 y += np.random.normal(scale=0.1*np.sqrt(noise_power), size=time.shape)
 '''
+dt = 0.01
+t = np.arange(0.0, 1.0, dt)
+
 f0 = 10.0
 f1 = 4.0
-x = 3.0 * np.cos(2 * np.pi * f0 * time) + np.random.standard_normal(size=len(time))
-y = 4.0 * np.cos(2 * np.pi * f1 * time) + np.cos(2 * np.pi * f0 * time) + 15 * np.random.standard_normal(size=len(time))
+x = 3.0 * np.cos(2 * np.pi * f0 * t) + np.random.standard_normal(size=len(t))
+y = 4.0 * np.cos(2 * np.pi * f1 * t) + np.cos(2 * np.pi * f0 * t) + 15 * np.random.standard_normal(size=len(t))
 
-x = 3.0 * np.cos(2 * np.pi * f0 * time) + np.random.standard_normal(size=len(time))
-y = np.cos(2 * np.pi * f1 * time) + np.cos(2 * np.pi * f0 * time)
+x = 3.0 * np.cos(2 * np.pi * f0 * t) + np.random.standard_normal(size=len(t))
+y = np.cos(2 * np.pi * f1 * t) + np.cos(2 * np.pi * f0 * t)
 
 '''
 plt.plot(time, x)
@@ -33,12 +36,12 @@ plt.ylabel('input')
 plt.show()
 '''
 
-f1, Pxy = signal.csd(y, y, fs, window="boxcar", nperseg=1000)
+f1, Pxy = signal.csd(y, y, 1.0 / dt, window="boxcar", nperseg=len(time))
 # f2, Pxx = signal.csd(x, x, fs, window="boxcar")
 # f3, Pyy = signal.csd(y, y, fs, window="boxcar")
 print(f1)
 print(len(f1))
-plt.plot(f1, np.abs(Pxy) / time[-1])
+plt.plot(f1, np.abs(Pxy))
 # plt.plot(f2, np.abs(Pxx))
 # plt.plot(f3, np.abs(Pyy))
 plt.xlabel('frequency [Hz]')
