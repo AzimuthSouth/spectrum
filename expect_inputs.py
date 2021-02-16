@@ -2,133 +2,129 @@ import numpy
 import base64
 import io
 import plotly.graph_objs as go
+from plotly.subplots import make_subplots
 import dash
 from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
-import prepare
-import analyse
+from staff import prepare
+from staff import analyse
 from scipy import signal
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
+server = app.server
+
 app.layout = html.Div([
     html.H4("Spectrum Analysis", style={'text-align': 'center'}),
+    html.Hr(),
     dcc.Upload(
         id='upload_data',
         children=html.Div([
-            html.A('Select File'),
+            html.A('Select File')
         ]),
     ),
     html.H5(id='filename'),
     html.Label(id='time_range'),
 
-    html.Div([
-        html.H6('Expect signal'),
-        html.Div([
-            dcc.Dropdown(
-                id='signal_1'
+    dcc.Tabs([
+        dcc.Tab(label='Expect signal', children=[
+            html.Div([
+                dcc.Dropdown(
+                    id='signal_1'
+                ),
+            ], style={'display': 'inline-block', 'width': '20%'}),
+
+            dcc.Checklist(
+                id='signal_filter',
+                options=[
+                    {'label': 'smoothing and centering', 'value': 'SM'},
+                    {'label': 'hann-weighting', 'value': 'HW'}
+                ],
+                value=['SM', 'HW'],
+                labelStyle={'display': 'inline-block'}
             ),
-        ], style={'display': 'inline-block', 'width': '20%'}),
+            html.Label("Smoothing window size"),
+            html.Div(dcc.Slider(
+                id='smoothing_window',
+                min=1,
+                max=10,
+                value=3,
+                marks={str(i): str(i) for i in range(1, 10)},
+                step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
+            dcc.Graph(id='input_graph', style={'width': '50%'})
+        ]),
+        dcc.Tab(label='Expect spectrum', children=[
+            html.Div([
+                dcc.Dropdown(
+                    id='spectrum_1'
+                ),
+                dcc.Dropdown(
+                    id='spectrum_2'
+                )
+            ], style={'display': 'inline-block', 'width': '20%'}),
 
-        dcc.Checklist(
-            id='signal_filter',
-            options=[
-                {'label': 'smoothing and centering', 'value': 'SM'},
-                {'label': 'hann-weighting', 'value': 'HW'}
-            ],
-            value=['SM', 'HW'],
-            labelStyle={'display': 'inline-block'}
-        ),
-        html.Label("Smoothing window size"),
-        html.Div(dcc.Slider(
-            id='smoothing_window',
-            min=1,
-            max=10,
-            value=3,
-            marks={str(i): str(i) for i in range(1, 10)},
-            step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'})
-    ]),
-
-    dcc.Graph(id='input_graph', style={'width': '50%'}),
-    html.Div(id='output-data-upload'),
-
-    html.Div([
-        html.H6('Expect spectrum'),
-        html.Div([
-            dcc.Dropdown(
-                id='spectrum_1'
+            dcc.Checklist(
+                id='spectrum_filter',
+                options=[
+                    {'label': 'smoothing and centering', 'value': 'SM'},
+                    {'label': 'hann-weighting', 'value': 'HW'}
+                ],
+                value=['SM', 'HW'],
+                labelStyle={'display': 'inline-block'}
             ),
-            dcc.Dropdown(
-                id='spectrum_2'
-            )
-        ], style={'display': 'inline-block', 'width': '20%'}),
+            html.Label("Smoothing window size"),
+            html.Div(dcc.Slider(
+                id='smoothing_window_spectrum',
+                min=1,
+                max=10,
+                value=3,
+                marks={str(i): str(i) for i in range(0, 10)},
+                step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
 
-        dcc.Checklist(
-            id='spectrum_filter',
-            options=[
-                {'label': 'smoothing and centering', 'value': 'SM'},
-                {'label': 'hann-weighting', 'value': 'HW'}
-            ],
-            value=['SM', 'HW'],
-            labelStyle={'display': 'inline-block'}
-        ),
-        html.Label("Smoothing window size"),
-        html.Div(dcc.Slider(
-            id='smoothing_window_spectrum',
-            min=1,
-            max=10,
-            value=3,
-            marks={str(i): str(i) for i in range(0, 10)},
-            step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
-    ]),
+            html.Div(dcc.Graph(id='spectrum_graph'),
+                     style={'width': '100%'}
+                     ),
+        ]),
+        dcc.Tab(label='Expect coherence', children=[
+            html.Div([
+                dcc.Dropdown(
+                    id='coherence_1'
+                ),
+                dcc.Dropdown(
+                    id='coherence_2'
+                )
+            ], style={'display': 'inline-block', 'width': '20%'}),
 
-    html.Div([dcc.Graph(id='spectrum_graph'),
-              dcc.Graph(id='spectrum_graph1'),
-              ], style={'display': 'inline-block'}),
-
-    html.Div([
-        html.H6('Expect coherence'),
-        html.Div([
-            dcc.Dropdown(
-                id='coherence_1'
+            dcc.Checklist(
+                id='coherence_filter',
+                options=[
+                    {'label': 'smoothing and centering', 'value': 'SM'},
+                    {'label': 'hann-weighting', 'value': 'HW'}
+                ],
+                value=['SM', 'HW'],
+                labelStyle={'display': 'inline-block'}
             ),
-            dcc.Dropdown(
-                id='coherence_2'
-            )
-        ], style={'display': 'inline-block', 'width': '20%'}),
-
-        dcc.Checklist(
-            id='coherence_filter',
-            options=[
-                {'label': 'smoothing and centering', 'value': 'SM'},
-                {'label': 'hann-weighting', 'value': 'HW'}
-            ],
-            value=['SM', 'HW'],
-            labelStyle={'display': 'inline-block'}
-        ),
-        html.Label("Smoothing window size"),
-        html.Div(dcc.Slider(
-            id='smoothing_window_coherence',
-            min=1,
-            max=10,
-            value=3,
-            marks={str(i): str(i) for i in range(0, 10)},
-            step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
-        html.Label("Points per segment"),
-        html.Div(dcc.Slider(
-            id='segment_len',
-            min=0,
-            max=2048,
-            value=256,
-            marks={str(128 * i): str(128 * i) for i in range(0, 20)},
-            step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
-        html.Label(id='inspection')
+            html.Label("Smoothing window size"),
+            html.Div(dcc.Slider(
+                id='smoothing_window_coherence',
+                min=1,
+                max=10,
+                value=3,
+                marks={str(i): str(i) for i in range(0, 10)},
+                step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
+            html.Label("Points per segment"),
+            dcc.Input(
+                id='segment_len',
+                type='number',
+                value=256
+            ),
+            html.Label(id='inspection'),
+            dcc.Graph(id='coherence_graph', style={'width': '50%'}),
+        ])
     ]),
-
-    dcc.Graph(id='coherence_graph', style={'width': '50%'}),
 
     html.Div(id='loading_data', style={'display': 'none'})
 ])
@@ -173,32 +169,20 @@ def calc_time_range(df):
               Output('spectrum_2', 'options'),
               Output('coherence_1', 'options'),
               Output('coherence_2', 'options'),
-              Output('segment_len', 'max'),
-              Output('segment_len', 'marks'),
               Input('upload_data', 'contents'),
               State('upload_data', 'filename'))
 def upload_file(contents, filename):
     df = pd.DataFrame()
     time_range = ""
-    max_point = 2048
-    marks = {str(128 * i): str(128 * i) for i in range(0, 20)}
     if contents:
         df = parse_data(contents, filename)
         trp = calc_time_range(df)
         time_range = f"Time from {trp[0]} to {trp[1]}, mean time step is {trp[2]}, time step deviation is {trp[3]}"
-        max_point = df.shape[0]
-        if max_point <= 128:
-            rng = range(0, max_point + 1)
-            marks = {str(i): str(i) for i in rng}
-        else:
-            rng = range(0, 128 * int(1 + numpy.ceil(max_point / 128)))
-            marks = {str(128 * i): str(128 * i) for i in rng}
     options = get_options(df.columns)
     return [df.to_json(date_format='iso', orient='split'),
             options, filename, time_range,
             options[1:], options[1:],
-            options[1:], options[1:],
-            max_point, marks]
+            options[1:], options[1:]]
 
 
 @app.callback(Output('input_graph', 'figure'),
@@ -232,15 +216,14 @@ def update_graph(signal_1, signal_filter, k, loading_data):
 
 
 @app.callback(Output('spectrum_graph', 'figure'),
-              Output('spectrum_graph1', 'figure'),
+              # Output('spectrum_graph1', 'figure'),
               Input('spectrum_1', 'value'),
               Input('spectrum_2', 'value'),
               Input('spectrum_filter', 'value'),
               Input('smoothing_window_spectrum', 'value'),
               State('loading_data', 'children'))
 def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, loading_data):
-    data1 = []
-    data2 = []
+    fig = make_subplots(rows=1, cols=2)
     if spectrum_1 and spectrum_2:
         df = pd.read_json(loading_data, orient='split')
         sig1 = df[spectrum_1]
@@ -258,23 +241,14 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, loading_data):
         f, g_xy = signal.csd(sig1, sig2, (1.0 / trp[2]), window="boxcar", nperseg=len(sig1))
         mod, phase = analyse.cross_spectrum_mod_fas(g_xy)
 
-        data1.append(go.Scatter(x=f, y=mod, mode='lines+markers', name='cross_spectrum'))
-        data2.append(go.Scatter(x=f, y=phase, mode='lines+markers', name='phase'))
-
-    layout1 = go.Layout(xaxis={'title': 'Frequencies'},
-                        yaxis={'title': 'Cross_spectrum'},
-                        margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                        hovermode='closest')
-
-    layout2 = go.Layout(xaxis={'title': 'Frequencies'},
-                        yaxis={'title': 'Phase'},
-                        margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                        hovermode='closest')
-
-    fig1 = go.Figure(data=data1, layout=layout1)
-    fig2 = go.Figure(data=data2, layout=layout2)
-
-    return [fig1, fig2]
+        fig.add_trace(go.Scatter(x=f, y=mod, mode='lines+markers', name='cross_spectrum'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=f, y=phase, mode='lines+markers', name='phase'), row=1, col=2)
+    fig.update_xaxes(title_text="Frequencies", row=1, col=1)
+    fig.update_xaxes(title_text="Frequencies", row=1, col=2)
+    fig.update_yaxes(title_text="Cross Spectrum Module", row=1, col=1)
+    fig.update_yaxes(title_text="Cross Spectrum Phase", row=1, col=2)
+    fig.update_layout(height=600, width=1400)
+    return fig
 
 
 @app.callback(Output('coherence_graph', 'figure'),

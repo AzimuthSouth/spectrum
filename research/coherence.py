@@ -1,6 +1,7 @@
 from scipy import signal
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas
 
 fs = 1.02e2
 N = 1e4
@@ -22,11 +23,15 @@ t = np.arange(0.0, 1.0, dt)
 
 f0 = 10.0
 f1 = 4.0
-x = 3.0 * np.cos(2 * np.pi * f0 * t) + np.random.standard_normal(size=len(t))
-y = 4.0 * np.cos(2 * np.pi * f1 * t) + np.cos(2 * np.pi * f0 * t) + 15 * np.random.standard_normal(size=len(t))
+x1 = 3.0 * np.cos(2 * np.pi * f0 * t)
+y1 = 4.0 * np.cos(2 * np.pi * f1 * t) + np.cos(2 * np.pi * f0 * t)
 
 x = 3.0 * np.cos(2 * np.pi * f0 * t) + np.random.standard_normal(size=len(t))
-y = np.cos(2 * np.pi * f1 * t) + np.cos(2 * np.pi * f0 * t)
+y = 4.0 * np.cos(2 * np.pi * f1 * t) + np.cos(2 * np.pi * f0 * t) + 0.5 * np.random.standard_normal(size=len(t))
+
+df = pandas.DataFrame(list(zip(t, x1, y1, x, y)),
+                      columns=['Time', 'clear10', 'clear4_10', 'noisy10', 'noisy4_10'])
+df.to_csv('harmonic.txt', index=False)
 
 '''
 plt.plot(time, x)
