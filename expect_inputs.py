@@ -125,8 +125,26 @@ app.layout = html.Div([
                 step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
 
             html.Div(dcc.Graph(id='spectrum_graph'),
-                     style={'width': '90vh', 'height': '90vh'}
+                     style={'width': '100%', 'height': '100%'}
                      ),
+            html.Div([
+                html.Label("Resize graph"),
+                dcc.Slider(
+                    id='graph_width1',
+                    min=1,
+                    max=15,
+                    value=10,
+                    marks={str(i): str(i) for i in range(1, 16)},
+                    step=None),
+                dcc.Slider(
+                    id='graph_height1',
+                    min=1,
+                    max=15,
+                    value=8,
+                    marks={str(i): str(i) for i in range(1, 16)},
+                    step=None)
+            ], style={'width': '40%'})
+
         ]),
         dcc.Tab(label='Expect coherence', children=[
             html.Div([
@@ -162,9 +180,30 @@ app.layout = html.Div([
                 value=256
             ),
             html.Label(id='inspection'),
-            dcc.Graph(id='coherence_graph', style={'width': '90vh', 'height': '90vh'}),
+            html.Div([
+                dcc.Graph(id='coherence_graph', style={'width': '100%', 'height': '100%'}),
+                html.Hr(),
+                html.Div([
+                    html.Label("Resize graph"),
+                    dcc.Slider(
+                        id='graph_width2',
+                        min=1,
+                        max=15,
+                        value=10,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None),
+                    dcc.Slider(
+                        id='graph_height2',
+                        min=1,
+                        max=15,
+                        value=8,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None)
+                ], style={'width': '40%'})
+            ])
+
         ])
-    ]),
+    ], style={'height': 60}),
 
     html.Div(id='loading_data', style={'display': 'none'})
 ])
@@ -304,16 +343,18 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
               Input('spectrum_2', 'value'),
               Input('spectrum_filter', 'value'),
               Input('smoothing_window_spectrum', 'value'),
+              Input('graph_width1', 'value'),
+              Input('graph_height1', 'value'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
               State('loading_data', 'children'))
-def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, t_start, t_end, loading_data):
-    fig = make_subplots(rows=1, cols=2)
+def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_height,
+                 t_start, t_end, loading_data):
+    fig = make_subplots(rows=2, cols=1)
     if spectrum_1 and spectrum_2:
         df = pd.read_json(loading_data, orient='split')
-        tm = df["Time"]
-        val1 = tm[0] if t_start is None else t_start
-        val2 = tm[-1] if t_end is None else t_end
+        val1 = df['Time'].iloc[0] if t_start is None else t_start
+        val2 = df['Time'].iloc[-1] if t_end is None else t_end
         dff = df[df["Time"] >= val1][df["Time"] <= val2]
         dff.reset_index(drop=True, inplace=True)
         sig1 = dff[spectrum_1]
@@ -332,33 +373,35 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, t_start, t_end, loa
         mod, phase = analyse.cross_spectrum_mod_fas(g_xy)
 
         fig.add_trace(go.Scatter(x=f, y=mod, mode='lines+markers', name='cross_spectrum'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=f, y=phase, mode='lines+markers', name='phase'), row=1, col=2)
+        fig.add_trace(go.Scatter(x=f, y=phase, mode='lines+markers', name='phase'), row=2, col=1)
     fig.update_xaxes(title_text="Frequencies", row=1, col=1)
-    fig.update_xaxes(title_text="Frequencies", row=1, col=2)
+    fig.update_xaxes(title_text="Frequencies", row=2, col=1)
     fig.update_yaxes(title_text="Cross Spectrum Module", row=1, col=1)
-    fig.update_yaxes(title_text="Cross Spectrum Phase", row=1, col=2)
-    fig.update_layout(height=600, width=1400)
+    fig.update_yaxes(title_text="Cross Spectrum Phase", row=2, col=1)
+    fig.update_layout(width=150 * graph_width, height=100 * graph_height)
     return fig
 
 
 @app.callback(Output('coherence_graph', 'figure'),
-              Output('inspection', 'children'),
+              # Output('inspection', 'children'),
               Input('coherence_1', 'value'),
               Input('coherence_2', 'value'),
               Input('coherence_filter', 'value'),
               Input('smoothing_window_coherence', 'value'),
               Input('segment_len', 'value'),
+              Input('graph_width2', 'value'),
+              Input('graph_height2', 'value'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
               State('loading_data', 'children'))
-def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, t_start, t_end, loading_data):
+def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, graph_width, graph_height,
+                 t_start, t_end, loading_data):
     data = []
     f = [-1.0]
     if coherence_1 and coherence_2:
         df = pd.read_json(loading_data, orient='split')
-        tm = df["Time"]
-        val1 = tm[0] if t_start is None else t_start
-        val2 = tm[-1] if t_end is None else t_end
+        val1 = df['Time'].iloc[0] if t_start is None else t_start
+        val2 = df['Time'].iloc[-1] if t_end is None else t_end
         dff = df[df["Time"] >= val1][df["Time"] <= val2]
         dff.reset_index(drop=True, inplace=True)
         sig1 = dff[coherence_1]
@@ -380,11 +423,12 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, t_s
     layout = go.Layout(xaxis={'title': 'Frequencies'},
                        yaxis={'title': 'Coherence'},
                        margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                       hovermode='closest')
+                       hovermode='closest',
+                       width=150 * graph_width, height=100 * graph_height)
 
     fig = go.Figure(data=data, layout=layout)
 
-    return [fig, f[-1]]
+    return fig
 
 
 if __name__ == '__main__':
