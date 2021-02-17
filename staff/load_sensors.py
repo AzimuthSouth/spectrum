@@ -8,11 +8,14 @@ df = pd.read_csv('sample.txt')
 time = df["Time"].to_numpy()
 delta = abs(time[:-1] - time[1:])
 
+buf = df.to_json(date_format='iso', orient='split')
+dff = pd.read_json(buf, orient='split')
+
 col_names = df.columns
-val1 = 1306.4
+val1 = 1306.8
 
-s2 = df[df["Time"] >= val1]
-
+s2 = dff[dff["Time"] >= val1]
+s2.reset_index(drop=True, inplace=True)
 print(s2)
 '''
 s1 = df[col_names[1]].to_numpy()

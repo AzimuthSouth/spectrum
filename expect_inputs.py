@@ -262,6 +262,7 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
     # update time range if it changes
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
     if trigger_id == "t_start" or trigger_id == 't_end':
         val1 = t_start
         val2 = t_end
@@ -272,23 +273,19 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
     data = []
     if signal_1:
         df = pd.read_json(loading_data, orient='split')
-        tm = df["Time"]
-        sg = df[signal_1]
-        sig = []
-        tim = []
-        for i in range(len(tm)):
-            if val1 <= tm[i] <= val2:
-                tim.append(tm[i])
-                sig.append(sg[i])
-        data.append(go.Scatter(x=tim, y=sig, mode='lines+markers', name=signal_1))
+        dff = df[df["Time"] >= val1][df["Time"] <= val2]
+        dff.reset_index(drop=True, inplace=True)
+        sig = dff[signal_1]
+
+        data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name=signal_1))
 
         if 'SM' in signal_filter:
             sig = prepare.smoothing(sig, k)
-            data.append(go.Scatter(x=tim, y=sig, mode='lines+markers', name='smooth'))
+            data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='smooth'))
 
         if 'HW' in signal_filter:
             sig = prepare.correction_hann(sig)
-            data.append(go.Scatter(x=tim, y=sig, mode='lines+markers', name='hann_correction'))
+            data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='hann_correction'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -317,16 +314,10 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, t_start, t_end, loa
         tm = df["Time"]
         val1 = tm[0] if t_start is None else t_start
         val2 = tm[-1] if t_end is None else t_end
-        sg1 = df[spectrum_1]
-        sg2 = df[spectrum_2]
-        sig1 = []
-        sig2 = []
-        tim = []
-        for i in range(len(tm)):
-            if val1 <= tm[i] <= val2:
-                tim.append(tm[i])
-                sig1.append(sg1[i])
-                sig2.append(sg2[i])
+        dff = df[df["Time"] >= val1][df["Time"] <= val2]
+        dff.reset_index(drop=True, inplace=True)
+        sig1 = dff[spectrum_1]
+        sig2 = dff[spectrum_2]
 
         if 'SM' in spectrum_filter:
             sig1 = prepare.smoothing(df[spectrum_1], k)
@@ -368,16 +359,10 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, t_s
         tm = df["Time"]
         val1 = tm[0] if t_start is None else t_start
         val2 = tm[-1] if t_end is None else t_end
-        sg1 = df[coherence_1]
-        sg2 = df[coherence_2]
-        sig1 = []
-        sig2 = []
-        tim = []
-        for i in range(len(tm)):
-            if val1 <= tm[i] <= val2:
-                tim.append(tm[i])
-                sig1.append(sg1[i])
-                sig2.append(sg2[i])
+        dff = df[df["Time"] >= val1][df["Time"] <= val2]
+        dff.reset_index(drop=True, inplace=True)
+        sig1 = dff[coherence_1]
+        sig2 = dff[coherence_2]
 
         if 'SM' in coherence_filter:
             sig1 = prepare.smoothing(df[coherence_1], k)
