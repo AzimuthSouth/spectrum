@@ -34,7 +34,7 @@ app.layout = html.Div([
             html.Div([
                 dcc.Dropdown(
                     id='signal_1'
-                ),
+                )
             ], style={'display': 'inline-block', 'width': '20%'}),
 
             dcc.Checklist(
@@ -52,9 +52,49 @@ app.layout = html.Div([
                 min=1,
                 max=10,
                 value=3,
-                marks={str(i): str(i) for i in range(1, 10)},
+                marks={str(i): str(i) for i in range(1, 11)},
                 step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
-            dcc.Graph(id='input_graph', style={'width': '50%'})
+
+            html.Div([
+                dcc.Graph(id='input_graph', style={'width': '100%', 'height': '100%'}),
+                html.Div([
+                    dcc.Input(
+                        id='t_start',
+                        type='number'
+                    ),
+                    dcc.Input(
+                        id='t_end',
+                        type='number'
+                    )
+                ], style={'width': '100%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
+
+                html.Div([
+                    dcc.RangeSlider(
+                        id='time_range_slider',
+                        allowCross=False
+                    ),
+                    html.Div(id='output-container-range-slider')
+                ]),
+                html.Div([
+                    html.Label("Resize graph"),
+                    dcc.Slider(
+                        id='graph_width',
+                        min=1,
+                        max=15,
+                        value=10,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None),
+                    dcc.Slider(
+                        id='graph_height',
+                        min=1,
+                        max=15,
+                        value=8,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None)
+                ], style={'width': '40%', 'display': 'inline-block'})
+
+            ])
+
         ]),
         dcc.Tab(label='Expect spectrum', children=[
             html.Div([
@@ -85,7 +125,7 @@ app.layout = html.Div([
                 step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
 
             html.Div(dcc.Graph(id='spectrum_graph'),
-                     style={'width': '100%'}
+                     style={'width': '90vh', 'height': '90vh'}
                      ),
         ]),
         dcc.Tab(label='Expect coherence', children=[
@@ -122,7 +162,7 @@ app.layout = html.Div([
                 value=256
             ),
             html.Label(id='inspection'),
-            dcc.Graph(id='coherence_graph', style={'width': '50%'}),
+            dcc.Graph(id='coherence_graph', style={'width': '90vh', 'height': '90vh'}),
         ])
     ]),
 
@@ -169,11 +209,21 @@ def calc_time_range(df):
               Output('spectrum_2', 'options'),
               Output('coherence_1', 'options'),
               Output('coherence_2', 'options'),
+              Output('t_start', 'min'),
+              Output('t_start', 'max'),
+              Output('t_start', 'step'),
+              Output('t_end', 'min'),
+              Output('t_end', 'max'),
+              Output('t_end', 'step'),
+              Output('time_range_slider', 'min'),
+              Output('time_range_slider', 'max'),
+              Output('time_range_slider', 'step'),
               Input('upload_data', 'contents'),
               State('upload_data', 'filename'))
 def upload_file(contents, filename):
     df = pd.DataFrame()
     time_range = ""
+    trp = [0.0, 1.0, 0.5]
     if contents:
         df = parse_data(contents, filename)
         trp = calc_time_range(df)
@@ -182,37 +232,73 @@ def upload_file(contents, filename):
     return [df.to_json(date_format='iso', orient='split'),
             options, filename, time_range,
             options[1:], options[1:],
-            options[1:], options[1:]]
+            options[1:], options[1:],
+            trp[0], trp[1], trp[2],
+            trp[0], trp[1], trp[2],
+            trp[0], trp[1], trp[2]]
 
 
 @app.callback(Output('input_graph', 'figure'),
+              Output('time_range_slider', 'value'),
+              Output('t_start', 'value'),
+              Output('t_end', 'value'),
               Input('signal_1', 'value'),
               Input('signal_filter', 'value'),
               Input('smoothing_window', 'value'),
-              State('loading_data', 'children'))
-def update_graph(signal_1, signal_filter, k, loading_data):
+              Input('graph_width', 'value'),
+              Input('graph_height', 'value'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              Input('time_range_slider', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'min'),
+              State('t_start', 'max'))
+def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
+                 t_start, t_end, t_range, loading_data, t_min, t_max):
+    # set time range if None
+    val1 = t_min if t_start is None else t_start
+    val2 = t_max if t_end is None else t_end
+
+    # update time range if it changes
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    if trigger_id == "t_start" or trigger_id == 't_end':
+        val1 = t_start
+        val2 = t_end
+    if trigger_id == "time_range_slider":
+        val1 = t_range[0]
+        val2 = t_range[1]
+
     data = []
     if signal_1:
         df = pd.read_json(loading_data, orient='split')
-        sig = df[signal_1]
-        data.append(go.Scatter(x=df["Time"], y=sig, mode='lines+markers', name=signal_1))
+        tm = df["Time"]
+        sg = df[signal_1]
+        sig = []
+        tim = []
+        for i in range(len(tm)):
+            if val1 <= tm[i] <= val2:
+                tim.append(tm[i])
+                sig.append(sg[i])
+        data.append(go.Scatter(x=tim, y=sig, mode='lines+markers', name=signal_1))
 
         if 'SM' in signal_filter:
             sig = prepare.smoothing(sig, k)
-            data.append(go.Scatter(x=df["Time"], y=sig, mode='lines+markers', name='smooth'))
+            data.append(go.Scatter(x=tim, y=sig, mode='lines+markers', name='smooth'))
 
         if 'HW' in signal_filter:
             sig = prepare.correction_hann(sig)
-            data.append(go.Scatter(x=df["Time"], y=sig, mode='lines+markers', name='hann_correction'))
+            data.append(go.Scatter(x=tim, y=sig, mode='lines+markers', name='hann_correction'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
                        margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                       hovermode='closest')
+                       hovermode='closest',
+                       width=150 * graph_width, height=100 * graph_height)
 
     fig = go.Figure(data=data, layout=layout)
 
-    return fig
+    return [fig, [val1, val2], val1, val2]
 
 
 @app.callback(Output('spectrum_graph', 'figure'),
@@ -221,13 +307,26 @@ def update_graph(signal_1, signal_filter, k, loading_data):
               Input('spectrum_2', 'value'),
               Input('spectrum_filter', 'value'),
               Input('smoothing_window_spectrum', 'value'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
               State('loading_data', 'children'))
-def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, loading_data):
+def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, t_start, t_end, loading_data):
     fig = make_subplots(rows=1, cols=2)
     if spectrum_1 and spectrum_2:
         df = pd.read_json(loading_data, orient='split')
-        sig1 = df[spectrum_1]
-        sig2 = df[spectrum_2]
+        tm = df["Time"]
+        val1 = tm[0] if t_start is None else t_start
+        val2 = tm[-1] if t_end is None else t_end
+        sg1 = df[spectrum_1]
+        sg2 = df[spectrum_2]
+        sig1 = []
+        sig2 = []
+        tim = []
+        for i in range(len(tm)):
+            if val1 <= tm[i] <= val2:
+                tim.append(tm[i])
+                sig1.append(sg1[i])
+                sig2.append(sg2[i])
 
         if 'SM' in spectrum_filter:
             sig1 = prepare.smoothing(df[spectrum_1], k)
@@ -258,14 +357,27 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, loading_data):
               Input('coherence_filter', 'value'),
               Input('smoothing_window_coherence', 'value'),
               Input('segment_len', 'value'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
               State('loading_data', 'children'))
-def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, loading_data):
+def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, t_start, t_end, loading_data):
     data = []
     f = [-1.0]
     if coherence_1 and coherence_2:
         df = pd.read_json(loading_data, orient='split')
-        sig1 = df[coherence_1]
-        sig2 = df[coherence_2]
+        tm = df["Time"]
+        val1 = tm[0] if t_start is None else t_start
+        val2 = tm[-1] if t_end is None else t_end
+        sg1 = df[coherence_1]
+        sg2 = df[coherence_2]
+        sig1 = []
+        sig2 = []
+        tim = []
+        for i in range(len(tm)):
+            if val1 <= tm[i] <= val2:
+                tim.append(tm[i])
+                sig1.append(sg1[i])
+                sig2.append(sg2[i])
 
         if 'SM' in coherence_filter:
             sig1 = prepare.smoothing(df[coherence_1], k)

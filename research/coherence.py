@@ -19,7 +19,7 @@ x += amp*np.sin(2*np.pi*freq*time)
 y += np.random.normal(scale=0.1*np.sqrt(noise_power), size=time.shape)
 '''
 dt = 0.01
-t = np.arange(0.0, 1.0, dt)
+t = np.arange(0.0, 6.0, dt)
 
 f0 = 10.0
 f1 = 4.0

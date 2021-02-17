@@ -28,13 +28,26 @@ def merge(x, ind, d):
     return numpy.array(res)
 
 
+# detect if a point is an extreme of the series
 def is_extreme(x, delta):
+    return is_max(x, delta) or is_min(x, delta)
+
+
+def is_max(x, delta):
     if (abs(x[0] - x[1]) >= delta) or (abs(x[2] - x[1]) >= delta):
         if (x[0] < x[1]) and (x[1] > x[2]):
             return True
+    return False
+
+
+def is_min(x, delta):
+    if (abs(x[0] - x[1]) >= delta) or (abs(x[2] - x[1]) >= delta):
         if (x[0] > x[1]) and (x[1] < x[2]):
             return True
     return False
+
+
+###
 
 
 def extreme_count(x, delta=0):
@@ -46,6 +59,7 @@ def extreme_count(x, delta=0):
     return res
 
 
+# class width, if data series is divided by m classes
 def class_width(x, m):
     delta = (numpy.max(x) - numpy.min(x)) / m
     return delta
@@ -87,6 +101,7 @@ def max_frequency(x, n, delta):
     return numpy.max(f)
 
 
+# number of mid-level crossings
 def mean_count(x):
     res = 0
     mn = numpy.mean(x[:, 1])
@@ -104,16 +119,69 @@ def input_stats(data, m):
     return [mn, s2, st, kp]
 
 
+'''
+# pick extremes from data series, 
+# where range between nearby extremes greater then delta 
+# 1st ans last points are extremes
+'''
+
+
 def pick_extremes(data, delta):
     x = data[:, 1]
     res = [data[0]]
     for i in range(1, len(data) - 1):
+        print("pnt={} is extreme is {}".format(x[i - 1:i + 2], is_extreme(x[i - 1:i + 2], delta)))
         if is_extreme(x[i - 1:i + 2], delta):
             res.append(data[i])
+        print("res={}".format(res))
     res.append(data[-1])
+    return numpy.array(res)
+
+
+# schematization of data series by extremes method
+def extremes_method(data, m):
+    ext = pick_max_above0_min_below0(data, m)
+    return repetition_rate(ext, count=m)
+
+
+def pick_max_above0_min_below0(data, m):
+    print(data)
+    delta = class_width(data, m)
+    print(delta)
+    series = pick_extremes(data, delta)
+    x = series[:, 1]
+    res = []
+    median = numpy.median(x)
+    median = 0
+    for i in range(1, len(series) - 1):
+        if x[i] >= 0 and is_max(x[i - 1:i + 2], delta):
+            res.append(abs(median - x[i]))
+        if x[i] <= 0 and is_min(x[i - 1:i + 2], delta):
+            res.append(abs(median - x[i]))
+    print('extremes={}'.format(res))
     return res
 
 
+# calc repetition rate
+def repetition_rate(data, width=None, count=None):
+    counts = defaultdict()
+    if count is not None:
+        width = (max(data) - min(data)) / count
+
+    if width is not None:
+        nmax = 0
+        for x in data:
+            n = int(math.ceil(x / width))  # using int for Python 2 compatibility
+            counts[n * width] += 1.0
+            nmax = max(n, nmax)
+
+        for i in range(1, nmax):
+            counts.setdefault(i * width, 0.0)
+
+    return sorted(counts.items())
+
+
+# calc range and mean values for cycle
 def range_mean(x1, x2, c):
     # return range, count, mean, min, max
     return [abs(x1 - x2), c, (x1 + x2) / 2, min(x1, x2), max(x1, x2)]
@@ -129,6 +197,7 @@ def _get_round_function(ndigits=None):
     return func
 
 
+# extract cycles from extreme series
 def pick_cycles(data):
     stack = []
     res = []
@@ -164,8 +233,10 @@ def pick_cycles(data):
 
 
 def count_cycles(data, ndigits=None, n_seg=None, seg_size=None):
-
     counts = defaultdict(float)
+
+    print(numpy.array(pick_cycles(data)))
+
     cycles = [i[:2] for i in pick_cycles(data)]
 
     if n_seg is not None:
