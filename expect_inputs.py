@@ -11,6 +11,7 @@ import pandas as pd
 from staff import prepare
 from staff import analyse
 from scipy import signal
+import urllib
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -33,7 +34,8 @@ app.layout = html.Div([
         dcc.Tab(label='Expect signal', children=[
             html.Div([
                 dcc.Dropdown(
-                    id='signal_1'
+                    id='signal_1',
+                    multi=True
                 )
             ], style={'display': 'inline-block', 'width': '20%'}),
 
@@ -57,6 +59,12 @@ app.layout = html.Div([
 
             html.Div([
                 dcc.Graph(id='input_graph', style={'width': '100%', 'height': '100%'}),
+                html.A('Export',
+                       id='my-link',
+                       download="data.txt",
+                       href="",
+                       target="_blank",
+                       style={'textAlign': 'right'}),
                 html.Div([
                     dcc.Input(
                         id='t_start',
@@ -65,15 +73,15 @@ app.layout = html.Div([
                     dcc.Input(
                         id='t_end',
                         type='number'
-                    )
+                    ),
+
                 ], style={'width': '100%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
 
                 html.Div([
                     dcc.RangeSlider(
                         id='time_range_slider',
                         allowCross=False
-                    ),
-                    html.Div(id='output-container-range-slider')
+                    )
                 ]),
                 html.Div([
                     html.Label("Resize graph"),
@@ -291,12 +299,14 @@ def upload_file(contents, filename):
               Input('time_range_slider', 'value'),
               State('loading_data', 'children'),
               State('t_start', 'min'),
-              State('t_start', 'max'))
+              State('t_start', 'max'),
+              State('t_start', 'step'))
 def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
-                 t_start, t_end, t_range, loading_data, t_min, t_max):
+                 t_start, t_end, t_range, loading_data, t_min, t_max, t_step):
     # set time range if None
     val1 = t_min if t_start is None else t_start
     val2 = t_max if t_end is None else t_end
+    dt = 0.0 if t_step is None else t_step / 2
 
     # update time range if it changes
     ctx = dash.callback_context
@@ -312,19 +322,20 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
     data = []
     if signal_1:
         df = pd.read_json(loading_data, orient='split')
-        dff = df[df["Time"] >= val1][df["Time"] <= val2]
+        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        sig = dff[signal_1]
+        for yy in signal_1:
+            sig = dff[yy]
 
-        data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name=signal_1))
+            data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name=yy))
 
-        if 'SM' in signal_filter:
-            sig = prepare.smoothing(sig, k)
-            data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='smooth'))
+            if 'SM' in signal_filter:
+                sig = prepare.smoothing(sig, k)
+                data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='smooth'))
 
-        if 'HW' in signal_filter:
-            sig = prepare.correction_hann(sig)
-            data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='hann_correction'))
+            if 'HW' in signal_filter:
+                sig = prepare.correction_hann(sig)
+                data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='hann_correction'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -337,6 +348,28 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
     return [fig, [val1, val2], val1, val2]
 
 
+@app.callback(Output('my-link', 'href'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'min'),
+              State('t_start', 'max'),
+              State('t_start', 'step'))
+def export_signal(t_start, t_end, loading_data, t_min, t_max, t_step):
+    # set time range if None
+    val1 = t_min if t_start is None else t_start
+    val2 = t_max if t_end is None else t_end
+    dt = 0.0 if t_step is None else t_step / 2
+    dff = pd.DataFrame()
+    df = pd.read_json(loading_data, orient='split')
+    if not df.empty:
+        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
+        dff.reset_index(drop=True, inplace=True)
+    csv_string = dff.to_csv(index=False, encoding='utf-8')
+    csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+    return csv_string
+
+
 @app.callback(Output('spectrum_graph', 'figure'),
               # Output('spectrum_graph1', 'figure'),
               Input('spectrum_1', 'value'),
@@ -347,15 +380,17 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
               Input('graph_height1', 'value'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
+              State('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_height,
-                 t_start, t_end, loading_data):
+                 t_start, t_end, t_step, loading_data):
     fig = make_subplots(rows=2, cols=1)
     if spectrum_1 and spectrum_2:
         df = pd.read_json(loading_data, orient='split')
         val1 = df['Time'].iloc[0] if t_start is None else t_start
         val2 = df['Time'].iloc[-1] if t_end is None else t_end
-        dff = df[df["Time"] >= val1][df["Time"] <= val2]
+        dt = 0.0 if t_step is None else t_step / 2
+        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         sig1 = dff[spectrum_1]
         sig2 = dff[spectrum_2]
@@ -393,16 +428,17 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
               Input('graph_height2', 'value'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
+              Input('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, graph_width, graph_height,
-                 t_start, t_end, loading_data):
+                 t_start, t_end, t_step, loading_data):
     data = []
-    f = [-1.0]
     if coherence_1 and coherence_2:
         df = pd.read_json(loading_data, orient='split')
         val1 = df['Time'].iloc[0] if t_start is None else t_start
         val2 = df['Time'].iloc[-1] if t_end is None else t_end
-        dff = df[df["Time"] >= val1][df["Time"] <= val2]
+        dt = 0.0 if t_step is None else t_step / 2
+        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         sig1 = dff[coherence_1]
         sig2 = dff[coherence_2]
