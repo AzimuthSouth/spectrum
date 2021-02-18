@@ -68,3 +68,9 @@ def correction(data, code, par=None):
         return correction_hemming(data, par)
     if code == 4:
         return correction_natoll(data, par)
+
+
+def calc_time_range(time):
+    delta = abs(time[:-1] - time[1:])
+    return [min(time), max(time), numpy.mean(delta), numpy.std(delta)]
+

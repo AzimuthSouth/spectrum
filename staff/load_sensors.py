@@ -16,7 +16,8 @@ val1 = 1306.8
 
 s2 = dff[dff["Time"] >= val1]
 s2.reset_index(drop=True, inplace=True)
-print(s2)
+
+print(df[col_names[1]])
 '''
 s1 = df[col_names[1]].to_numpy()
 f, g_xx = signal.csd(s1, s1, (1.0 / np.mean(delta)), window="hann", nperseg=len(s1))

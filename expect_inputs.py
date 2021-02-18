@@ -1,4 +1,3 @@
-import numpy
 import base64
 import io
 import plotly.graph_objs as go
@@ -10,6 +9,7 @@ import dash_html_components as html
 import pandas as pd
 from staff import prepare
 from staff import analyse
+from staff import pipeline
 from scipy import signal
 import urllib
 
@@ -59,12 +59,6 @@ app.layout = html.Div([
 
             html.Div([
                 dcc.Graph(id='input_graph', style={'width': '100%', 'height': '100%'}),
-                html.A('Export',
-                       id='my-link',
-                       download="data.txt",
-                       href="",
-                       target="_blank",
-                       style={'textAlign': 'right'}),
                 html.Div([
                     dcc.Input(
                         id='t_start',
@@ -83,6 +77,15 @@ app.layout = html.Div([
                         allowCross=False
                     )
                 ]),
+                html.Button('Export signals', id='pick_signals'),
+                html.A('Export signals',
+                       id='link-signals',
+                       download="data.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
+                html.Hr(),
                 html.Div([
                     html.Label("Resize graph"),
                     dcc.Slider(
@@ -135,6 +138,15 @@ app.layout = html.Div([
             html.Div(dcc.Graph(id='spectrum_graph'),
                      style={'width': '100%', 'height': '100%'}
                      ),
+            html.Hr(),
+            html.Button('Export spectrum', id='pick_spectrum'),
+            html.A('Export cross spectrum',
+                   id='link-spectrum',
+                   download="cross_spectrum.txt",
+                   href="",
+                   target="_blank",
+                   hidden=True,
+                   style={'textAlign': 'right'}),
             html.Div([
                 html.Label("Resize graph"),
                 dcc.Slider(
@@ -191,6 +203,14 @@ app.layout = html.Div([
             html.Div([
                 dcc.Graph(id='coherence_graph', style={'width': '100%', 'height': '100%'}),
                 html.Hr(),
+                html.Button('Export coherence', id='pick_coherence'),
+                html.A('Export coherence',
+                       id='link-coherence',
+                       download="coherence.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
                 html.Div([
                     html.Label("Resize graph"),
                     dcc.Slider(
@@ -242,12 +262,6 @@ def parse_data(contents, filename):
     return df
 
 
-def calc_time_range(df):
-    time = df["Time"].to_numpy()
-    delta = abs(time[:-1] - time[1:])
-    return [min(time), max(time), numpy.mean(delta), numpy.std(delta)]
-
-
 @app.callback(Output('loading_data', 'children'),
               Output('signal_1', 'options'),
               Output('filename', 'children'),
@@ -273,7 +287,8 @@ def upload_file(contents, filename):
     trp = [0.0, 1.0, 0.5]
     if contents:
         df = parse_data(contents, filename)
-        trp = calc_time_range(df)
+        cols = df.columns
+        trp = prepare.calc_time_range(df[cols[0]].to_numpy())
         time_range = f"Time from {trp[0]} to {trp[1]}, mean time step is {trp[2]}, time step deviation is {trp[3]}"
     options = get_options(df.columns)
     return [df.to_json(date_format='iso', orient='split'),
@@ -322,20 +337,21 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
     data = []
     if signal_1:
         df = pd.read_json(loading_data, orient='split')
-        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
+        cols = df.columns
+        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         for yy in signal_1:
             sig = dff[yy]
 
-            data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name=yy))
+            data.append(go.Scatter(x=dff[cols[0]], y=sig, mode='lines+markers', name=yy))
 
             if 'SM' in signal_filter:
                 sig = prepare.smoothing(sig, k)
-                data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='smooth'))
+                data.append(go.Scatter(x=dff[cols[0]], y=sig, mode='lines+markers', name='smooth'))
 
             if 'HW' in signal_filter:
                 sig = prepare.correction_hann(sig)
-                data.append(go.Scatter(x=dff["Time"], y=sig, mode='lines+markers', name='hann_correction'))
+                data.append(go.Scatter(x=dff[cols[0]], y=sig, mode='lines+markers', name='hann_correction'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -348,26 +364,42 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
     return [fig, [val1, val2], val1, val2]
 
 
-@app.callback(Output('my-link', 'href'),
+@app.callback(Output('link-signals', 'href'),
+              Output('link-signals', 'hidden'),
+              Input('pick_signals', 'n_clicks'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
+              Input('time_range_slider', 'value'),
               State('loading_data', 'children'),
               State('t_start', 'min'),
               State('t_start', 'max'),
               State('t_start', 'step'))
-def export_signal(t_start, t_end, loading_data, t_min, t_max, t_step):
-    # set time range if None
-    val1 = t_min if t_start is None else t_start
-    val2 = t_max if t_end is None else t_end
-    dt = 0.0 if t_step is None else t_step / 2
-    dff = pd.DataFrame()
-    df = pd.read_json(loading_data, orient='split')
-    if not df.empty:
-        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
-    csv_string = dff.to_csv(index=False, encoding='utf-8')
-    csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-    return csv_string
+def export_signal(n_clicks, t_start, t_end, t_range, loading_data, t_min, t_max, t_step):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_signals':
+        print("in export signal")
+        print(n_clicks)
+        print(loading_data is None)
+        dff = pd.DataFrame()
+        # set time range if None
+        val1 = t_min if t_start is None else t_start
+        val2 = t_max if t_end is None else t_end
+        dt = 0.0 if t_step is None else t_step / 2
+        if not (loading_data is None):
+            df = pd.read_json(loading_data, orient='split')
+            if not df.empty:
+                cols = df.columns
+                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+                dff.reset_index(drop=True, inplace=True)
+        csv_string = dff.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        print("string={}".format(csv_string))
+        return [csv_string, False]
+    # change time
+    if triggered_id == 't_start' or triggered_id == 't_end' or triggered_id == 'time_range_slider':
+        return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
 @app.callback(Output('spectrum_graph', 'figure'),
@@ -378,8 +410,8 @@ def export_signal(t_start, t_end, loading_data, t_min, t_max, t_step):
               Input('smoothing_window_spectrum', 'value'),
               Input('graph_width1', 'value'),
               Input('graph_height1', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
+              State('t_start', 'value'),
+              State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_height,
@@ -387,13 +419,15 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
     fig = make_subplots(rows=2, cols=1)
     if spectrum_1 and spectrum_2:
         df = pd.read_json(loading_data, orient='split')
-        val1 = df['Time'].iloc[0] if t_start is None else t_start
-        val2 = df['Time'].iloc[-1] if t_end is None else t_end
+        cols = df.columns
+        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
+        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
         dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
+        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         sig1 = dff[spectrum_1]
         sig2 = dff[spectrum_2]
+        hann_koef = 1.0
 
         if 'SM' in spectrum_filter:
             sig1 = prepare.smoothing(df[spectrum_1], k)
@@ -402,10 +436,12 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
         if 'HW' in spectrum_filter:
             sig1 = prepare.correction_hann(sig1)
             sig2 = prepare.correction_hann(sig2)
+            hann_koef = 8.0 / 3
 
-        trp = calc_time_range(df)
+        trp = prepare.calc_time_range(df[cols[0]].to_numpy())
         f, g_xy = signal.csd(sig1, sig2, (1.0 / trp[2]), window="boxcar", nperseg=len(sig1))
         mod, phase = analyse.cross_spectrum_mod_fas(g_xy)
+        mod *= hann_koef
 
         fig.add_trace(go.Scatter(x=f, y=mod, mode='lines+markers', name='cross_spectrum'), row=1, col=1)
         fig.add_trace(go.Scatter(x=f, y=phase, mode='lines+markers', name='phase'), row=2, col=1)
@@ -417,6 +453,43 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
     return fig
 
 
+@app.callback(Output('link-spectrum', 'href'),
+              Output('link-spectrum', 'hidden'),
+              Input('pick_spectrum', 'n_clicks'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              Input('spectrum_filter', 'value'),
+              Input('smoothing_window_spectrum', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'min'),
+              State('t_start', 'max'),
+              State('t_start', 'step'))
+def export_cross_spectrum(n_clicks, t_start, t_end, spectrum_filter, k, loading_data, t_min, t_max, t_step):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_spectrum':
+        print("in export cross")
+        dfres = pd.DataFrame()
+        # set time range if None
+        val1 = t_min if t_start is None else t_start
+        val2 = t_max if t_end is None else t_end
+        dt = 0.0 if t_step is None else t_step / 2
+        smoothing = k if 'SM' in spectrum_filter else -1
+        win = "hann" if 'HW' in spectrum_filter else "boxcar"
+        if not (loading_data is None):
+            df = pd.read_json(loading_data, orient='split')
+            if not df.empty:
+                cols = df.columns
+                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+                dff.reset_index(drop=True, inplace=True)
+                dfres = pipeline.calc_set_of_signals_cross_spectrum(dff, smoothing, win)
+        csv_string = dfres.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
 @app.callback(Output('coherence_graph', 'figure'),
               # Output('inspection', 'children'),
               Input('coherence_1', 'value'),
@@ -426,19 +499,20 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
               Input('segment_len', 'value'),
               Input('graph_width2', 'value'),
               Input('graph_height2', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
-              Input('t_start', 'step'),
+              State('t_start', 'value'),
+              State('t_end', 'value'),
+              State('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, graph_width, graph_height,
                  t_start, t_end, t_step, loading_data):
     data = []
     if coherence_1 and coherence_2:
         df = pd.read_json(loading_data, orient='split')
-        val1 = df['Time'].iloc[0] if t_start is None else t_start
-        val2 = df['Time'].iloc[-1] if t_end is None else t_end
+        cols = df.columns
+        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
+        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
         dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df["Time"] >= (val1 - dt)) & (df["Time"] <= (val2 + dt))]
+        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         sig1 = dff[coherence_1]
         sig2 = dff[coherence_2]
@@ -451,7 +525,7 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
             sig1 = prepare.correction_hann(sig1)
             sig2 = prepare.correction_hann(sig2)
 
-        trp = calc_time_range(df)
+        trp = prepare.calc_time_range(df[cols[0]].to_numpy())
         f, c_xx = signal.coherence(sig1, sig2, (1.0 / trp[2]), window="boxcar", nperseg=segment_len)
 
         data.append(go.Scatter(x=f, y=c_xx, mode='lines+markers', name='cross_spectrum'))
@@ -465,6 +539,44 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
     fig = go.Figure(data=data, layout=layout)
 
     return fig
+
+
+@app.callback(Output('link-coherence', 'href'),
+              Output('link-coherence', 'hidden'),
+              Input('pick_coherence', 'n_clicks'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              Input('coherence_filter', 'value'),
+              Input('smoothing_window_coherence', 'value'),
+              Input('segment_len', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'min'),
+              State('t_start', 'max'),
+              State('t_start', 'step'))
+def export_coherence(n_clicks, t_start, t_end, spectrum_filter, k, npseg, loading_data, t_min, t_max, t_step):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_coherence':
+        dfres = pd.DataFrame()
+        # set time range if None
+        val1 = t_min if t_start is None else t_start
+        val2 = t_max if t_end is None else t_end
+        dt = 0.0 if t_step is None else t_step / 2
+        smoothing = k if 'SM' in spectrum_filter else -1
+        win = "hann" if 'HW' in spectrum_filter else "boxcar"
+        print("in export coh")
+        if loading_data:
+            df = pd.read_json(loading_data, orient='split')
+            if not df.empty:
+                cols = df.columns
+                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+                dff.reset_index(drop=True, inplace=True)
+                dfres = pipeline.calc_set_of_signals_coherence(dff, smoothing, win, npseg)
+        csv_string = dfres.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 import numpy
 from scipy import signal
+import pandas as pd
 
 def frequencies(n, dt):
     f = numpy.zeros(n)
@@ -45,3 +46,4 @@ def cross_spectrum_mod_fas(g_xy):
 def coherent_function(x, y, fs, nps):
     f, c_xy = signal.coherence(x, y, fs, nperseg=nps)
     return[f, c_xy]
+
