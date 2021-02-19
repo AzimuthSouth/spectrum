@@ -3,3 +3,7 @@
 venv
 sample.txt
 harmonic.txt
+*.txt
+staff/load_sensors.py
+verification/*.*
+research/*.*

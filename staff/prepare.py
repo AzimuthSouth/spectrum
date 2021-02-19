@@ -14,6 +14,15 @@ def smoothing(data, k):
     return res
 
 
+def smoothing2(data, k, step):
+    res = []
+    # mn = numpy.mean(data)
+    for i in range(len(data) - k + 1):
+        xi = data[i:k + i]
+        res.append(numpy.mean(xi))
+    return res
+
+
 def hann_coefficient(r, n):
     return (1 - numpy.cos(2 * r * numpy.pi / n)) / 2
 
