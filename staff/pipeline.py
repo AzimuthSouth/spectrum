@@ -1,6 +1,7 @@
 import pandas as pd
-from staff import prepare
-from staff import analyse
+import prepare
+import analyse
+import schematisation
 from scipy import signal
 import scipy
 
@@ -71,3 +72,27 @@ def calc_set_of_signals_coherence(df, smoothing, win, npseg):
             name = col_names[i] + "_" + col_names[j]
             dff[name] = c_xy
     return dff
+
+
+def signal_processing(df, name, eps):
+    """
+
+    :param df: input signals dataFrame
+    :param name: expected signal column name
+    :param eps: class width
+    :return: repetition rate
+    """
+    # pick signal
+    time = df[df.columns[0]]
+    sig = df[name]
+
+    # merge signal and pick extremes
+    sig_merge = schematisation.merge(zip(time, sig), 1, eps)
+    sig_ext = schematisation.pick_extremes(sig_merge, 1)
+
+    # there should be detrend!!!
+
+    # initial statistics
+    stats = schematisation.input_stats(sig_ext)
+
+

@@ -15,46 +15,58 @@ def merge(x, ind, d):
             buf.append(x[i])
 
         else:
-            if len(buf) > 1:
-                res.append(buf[-1])
-                res.append(x[i])
-            else:
-                res.append(x[i])
+            # move last res point to to buf
+            buf = [res[-1]] + buf
+            res = res[:-1]
+            # average buf points
+            ave = average_array(buf)
+            res.append(ave)
+            res.append(x[i])
             buf = []
 
-        if i == (len(x) - 1) and len(buf) > 1:
+        if i == (len(x) - 1):
+            if abs(res[-1][ind] - x[i][ind]) <= d:
+                res = res[:-1]
             res.append(x[i])
 
     return numpy.array(res)
 
 
+def average_array(buf):
+    res = numpy.zeros(len(buf[0]))
+    for i in range(len(buf)):
+        for j in range(len(buf[0])):
+            res[j] += buf[i][j]
+    res = numpy.array(res) / len(buf)
+    return res
+
+
 # detect if a point is an extreme of the series
-def is_extreme(x, delta):
-    return is_max(x, delta) or is_min(x, delta)
+def is_extreme(x):
+    # print(is_max(x) or is_min(x))
+    return is_max(x) or is_min(x)
 
 
-def is_max(x, delta):
-    if (abs(x[0] - x[1]) >= delta) or (abs(x[2] - x[1]) >= delta):
-        if (x[0] < x[1]) and (x[1] > x[2]):
-            return True
+def is_max(x):
+    if (x[0] < x[1]) and (x[1] > x[2]):
+        return True
     return False
 
 
-def is_min(x, delta):
-    if (abs(x[0] - x[1]) >= delta) or (abs(x[2] - x[1]) >= delta):
-        if (x[0] > x[1]) and (x[1] < x[2]):
-            return True
+def is_min(x):
+    if (x[0] > x[1]) and (x[1] < x[2]):
+        return True
     return False
 
 
 ###
 
 
-def extreme_count(x, delta=0):
-    # first and last points are not extremes
-    res = 0
+def extreme_count(x):
+    # first and last points are always extremes
+    res = 2
     for i in range(1, len(x) - 1):
-        if is_extreme(x[i - 1:i + 2], delta):
+        if is_extreme(x[i - 1:i + 2]):
             res += 1
     return res
 
@@ -91,31 +103,34 @@ def set_n_segments(x, dt):
     return numpy.array(seg, dtype=numpy.ndarray)
 
 
-def max_frequency(x, n, delta):
+def max_frequency(x, n):
     dt = (numpy.max(x[:, 0]) - numpy.min(x[:, 0])) / n
     seg = set_n_segments(x, dt)
     f = []
     for i in range(len(seg)):
         dti = seg[i][-2, 0] - seg[i][1, 0]
-        f.append(extreme_count(seg[i][:, 1], delta) / (2 * dti))
+        f.append(extreme_count(seg[i][:, 1]) / (2 * dti))
     return numpy.max(f)
 
 
 # number of mid-level crossings
 def mean_count(x):
     res = 0
-    mn = numpy.mean(x[:, 1])
+    mn = numpy.mean(x)
+    print(mn)
     for i in range(1, len(x)):
-        if (x[i - 1, 1] <= mn) and (x[i, 1] > mn):
+        if (x[i - 1] < mn) and (x[i] > mn):
+            res += 1
+        if (x[i - 1] > mn) and (x[i] < mn):
             res += 1
     return res
 
 
-def input_stats(data, m):
+def input_stats(data):
     mn = numpy.mean(data[:, 1])
     s2 = numpy.var(data[:, 1])
     st = numpy.std(data[:, 1])
-    kp = mean_count(data) / extreme_count(data, class_width(data, m))
+    kp = mean_count(data[:, 1]) / extreme_count(data[:, 1])
     return [mn, s2, st, kp]
 
 
@@ -126,39 +141,66 @@ def input_stats(data, m):
 '''
 
 
-def pick_extremes(data, delta):
-    x = data[:, 1]
+def pick_extremes(data, ind):
+    x = data[:, ind]
     res = [data[0]]
     for i in range(1, len(data) - 1):
-        print("pnt={} is extreme is {}".format(x[i - 1:i + 2], is_extreme(x[i - 1:i + 2], delta)))
-        if is_extreme(x[i - 1:i + 2], delta):
+        if is_extreme(x[i - 1:i + 2]):
             res.append(data[i])
-        print("res={}".format(res))
     res.append(data[-1])
     return numpy.array(res)
 
 
 # schematization of data series by extremes method
-def extremes_method(data, m):
-    ext = pick_max_above0_min_below0(data, m)
-    return repetition_rate(ext, count=m)
+def extremes_method(data, ind, m):
+    ext = pick_max_above0_min_below0(data, ind)
+    return repetition_rate(ext[:, ind], count=m)
 
 
-def pick_max_above0_min_below0(data, m):
-    print(data)
-    delta = class_width(data, m)
-    print(delta)
-    series = pick_extremes(data, delta)
-    x = series[:, 1]
+def maximum_method(data, ind, m):
+    ext = pick_max_above0(data, ind)
+    return repetition_rate(ext[:, ind], count=m)
+
+
+def minimum_method(data, ind, m):
+    ext = pick_min_below0(data, ind)
+    return repetition_rate(ext[:, ind], count=m)
+
+
+def range_method(data, ind, m):
+    return repetition_rate(pick_ranges(data, ind), m)
+
+
+# helpers for schematisation methods
+def pick_max_above0(data, ind):
+    x = data(data[:, ind])
     res = []
-    median = numpy.median(x)
-    median = 0
-    for i in range(1, len(series) - 1):
-        if x[i] >= 0 and is_max(x[i - 1:i + 2], delta):
-            res.append(abs(median - x[i]))
-        if x[i] <= 0 and is_min(x[i - 1:i + 2], delta):
-            res.append(abs(median - x[i]))
-    print('extremes={}'.format(res))
+    for i in range(1, len(x) - 1):
+        if is_max(x[i - 1: i + 2]) and (x[i] > 0):
+            res.append(data[i])
+    return res
+
+
+def pick_min_below0(data, ind):
+    x = data(data[:, ind])
+    res = []
+    for i in range(1, len(x) - 1):
+        if is_min(x[i - 1: i + 2]) and (x[i] < 0):
+            res.append(data[i])
+    return res
+
+
+def pick_max_above0_min_below0(data, ind):
+    return pick_max_above0(data, ind) + pick_min_below0(data, ind)
+
+
+def pick_ranges(data, ind):
+    n2 = numpy.ceil(len(data) / 2)
+    res = []
+    for i in range(n2):
+        p1 = data[2 * i]
+        p2 = data[2 * i + 1]
+        res.append(abs(p1[ind] - p2[ind]))
     return res
 
 
@@ -171,7 +213,7 @@ def repetition_rate(data, width=None, count=None):
     if width is not None:
         nmax = 0
         for x in data:
-            n = int(math.ceil(x / width))  # using int for Python 2 compatibility
+            n = int(math.ceil(x / width))
             counts[n * width] += 1.0
             nmax = max(n, nmax)
 

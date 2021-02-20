@@ -2,24 +2,67 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
+import scipy
+import prepare
+import schematisation
 
-
-df = pd.read_csv('sample.txt')
-time = df["Time"].to_numpy()
-delta = abs(time[:-1] - time[1:])
-
-buf = df.to_json(date_format='iso', orient='split')
-dff = pd.read_json(buf, orient='split')
-
+df = pd.read_csv('data.txt')
 col_names = df.columns
-val1 = 1306.8
+r, c = df.shape
+print(df)
+dt = 0.02
+# time = df[col_names[0]].to_numpy()
+time = np.arange(0, dt * r, dt)
+delta = np.mean(abs(time[:-1] - time[1:]))
+s1 = df[col_names[0]].to_numpy()
+d = (max(s1) - min(s1)) * 0.005
+s1[len(s1) - 1] += 2 * d
+ds1 = signal.detrend(s1, bp=[100, 150, 195, 390, 585])
+#  bp=range(1, len(s1), int(len(s1) / 100))
+dr = s1 - ds1
+d = (max(s1) - min(s1)) * 0.005
+print(d)
+s1m = schematisation.merge(list(zip(time, s1)), 1, d)
+ext = schematisation.pick_extremes(s1m, 1)
 
-s2 = dff[dff["Time"] >= val1]
-s2.reset_index(drop=True, inplace=True)
 
-print(df[col_names[1]])
+df1 = pd.read_csv('data_res.txt', delim_whitespace=True)
+col_names1 = df1.columns
+r1 = df1[col_names1[0]].to_numpy()[:682]
+r2 = df1[col_names1[1]].to_numpy()
+print(r1[0])
+
+
+#plt.plot(time, r2, label='res')
+#plt.plot(time, ds1, label='detrend')
+plt.plot(s1m[:, 0], s1m[:, 1], '+', label='merge')
+plt.plot(ext[:, 0], ext[:, 1], label='ext')
+plt.plot(time, s1, label='res')
+
+
+# plt.plot(time, r1[:len(time)], label='r1')
+#plt.plot(time, dr, label='sig-detrend')
+#plt.plot(time, s1 - r2, label='sig-r2')
+# plt.plot(time[:len(r1)], r1, label='r1')
+
+plt.xlabel('time [s]')
+plt.ylabel('input [-]')
+plt.legend(loc='best')
+plt.show()
+
+
+
+
+#ff = scipy.fft.rfftfreq(len(s1), dt)
+
+
+
 '''
-s1 = df[col_names[1]].to_numpy()
+df = pd.DataFrame(list(zip(ff, abs(fs1))),
+                      columns=['freq', 'fft'])
+df.to_csv('data_res.txt', index=False)
+
+
 f, g_xx = signal.csd(s1, s1, (1.0 / np.mean(delta)), window="hann", nperseg=len(s1))
 plt.plot(f, np.abs(g_xx))
 plt.xlabel('frequency [Hz]')
