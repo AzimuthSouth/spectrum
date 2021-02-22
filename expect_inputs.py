@@ -52,9 +52,9 @@ app.layout = html.Div([
             html.Div(dcc.Slider(
                 id='smoothing_window',
                 min=1,
-                max=10,
+                max=100,
                 value=3,
-                marks={str(i): str(i) for i in range(1, 11)},
+                marks={str(i): str(i) for i in range(1, 101)},
                 step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
 
             html.Div([
@@ -341,17 +341,18 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         for yy in signal_1:
-            sig = dff[yy]
+            sig = dff[[cols[0], yy]]
+            print(sig)
 
-            data.append(go.Scatter(x=dff[cols[0]], y=sig, mode='lines+markers', name=yy))
+            data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode='lines+markers', name=yy))
 
             if 'SM' in signal_filter:
-                sig = prepare.smoothing(sig, k)
-                data.append(go.Scatter(x=dff[cols[0]], y=sig, mode='lines+markers', name='smooth'))
+                sig = prepare.smoothing_symm(sig, yy, k, 1)
+                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode='lines+markers', name='smooth'))
 
             if 'HW' in signal_filter:
-                sig = prepare.correction_hann(sig)
-                data.append(go.Scatter(x=dff[cols[0]], y=sig, mode='lines+markers', name='hann_correction'))
+                sig = prepare.correction_hann(sig, yy)
+                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode='lines+markers', name='hann_correction'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -425,21 +426,21 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
         dt = 0.0 if t_step is None else t_step / 2
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        sig1 = dff[spectrum_1]
-        sig2 = dff[spectrum_2]
+        sig1 = dff[[cols[0], spectrum_1]]
+        sig2 = dff[[cols[0], spectrum_2]]
         hann_koef = 1.0
 
         if 'SM' in spectrum_filter:
-            sig1 = prepare.smoothing(df[spectrum_1], k)
-            sig2 = prepare.smoothing(df[spectrum_2], k)
+            sig1 = prepare.smoothing_symm(sig1, spectrum_1, k, 1)
+            sig2 = prepare.smoothing_symm(sig2, spectrum_2, k, 1)
 
         if 'HW' in spectrum_filter:
-            sig1 = prepare.correction_hann(sig1)
-            sig2 = prepare.correction_hann(sig2)
+            sig1 = prepare.correction_hann(sig1, spectrum_1)
+            sig2 = prepare.correction_hann(sig2, spectrum_2)
             hann_koef = 8.0 / 3
 
         trp = prepare.calc_time_range(df[cols[0]].to_numpy())
-        f, g_xy = signal.csd(sig1, sig2, (1.0 / trp[2]), window="boxcar", nperseg=len(sig1))
+        f, g_xy = signal.csd(sig1[spectrum_1], sig2[spectrum_2], (1.0 / trp[2]), window="boxcar", nperseg=len(sig1))
         mod, phase = analyse.cross_spectrum_mod_fas(g_xy)
         mod *= hann_koef
 
@@ -514,19 +515,20 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
         dt = 0.0 if t_step is None else t_step / 2
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        sig1 = dff[coherence_1]
-        sig2 = dff[coherence_2]
+        sig1 = dff[[cols[0], coherence_1]]
+        sig2 = dff[[cols[0], coherence_2]]
 
         if 'SM' in coherence_filter:
-            sig1 = prepare.smoothing(df[coherence_1], k)
-            sig2 = prepare.smoothing(df[coherence_2], k)
+            sig1 = prepare.smoothing_symm(sig1, coherence_1, k, 1)
+            sig2 = prepare.smoothing_symm(sig2, coherence_2, k, 1)
 
         if 'HW' in coherence_filter:
-            sig1 = prepare.correction_hann(sig1)
-            sig2 = prepare.correction_hann(sig2)
+            sig1 = prepare.correction_hann(sig1, coherence_1)
+            sig2 = prepare.correction_hann(sig2, coherence_2)
 
         trp = prepare.calc_time_range(df[cols[0]].to_numpy())
-        f, c_xx = signal.coherence(sig1, sig2, (1.0 / trp[2]), window="boxcar", nperseg=segment_len)
+        f, c_xx = signal.coherence(sig1[coherence_1], sig2[coherence_2],
+                                   (1.0 / trp[2]), window="boxcar", nperseg=segment_len)
 
         data.append(go.Scatter(x=f, y=c_xx, mode='lines+markers', name='cross_spectrum'))
 
