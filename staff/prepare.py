@@ -24,7 +24,34 @@ def smoothing_symm(data, name, k, step):
         x_smooth.append(xi)
     df1 = dff.copy()
     df1[name] = x_smooth
-    print("smoth data={}".format(df1))
+    return df1
+
+def set_smoothing_symm(data, names, k, step):
+    """
+    Function for smoothing and offsetting input signal
+    :param data: dataframe
+    :param name: array of col_names for smoothing
+    :param k: window width
+    :param step: offset
+    :return: dataFrame
+    """
+    rows, _ = data.shape
+    # 1st corrected point
+    ind1 = int(numpy.trunc(k / 2))
+    # select rows from df
+    index = range(ind1, rows - ind1, step)
+    dff = data.iloc[index]
+    dff.reset_index(drop=True, inplace=True)
+    df1 = dff.copy()
+
+    for name in names:
+        x = data[name].to_numpy()
+        x_smooth = []
+        # smooth column
+        for i in range(ind1, len(x) - ind1, step):
+            xi = numpy.mean(x[i: k + i])
+            x_smooth.append(xi)
+        df1[name + '_smooth'] = x_smooth
     return df1
 
 
@@ -66,6 +93,32 @@ def correction_hann(data, name, par=None):
     dff = data.copy()
     xi = [hann_coefficient(i, rows) for i in range(rows)]
     dff[name] *= xi
+    return dff
+
+
+def set_correction_hann(data, names, par=None):
+    """
+
+    :param data: dataFrame
+    :param names: array of column name for correction
+    :param par:
+    :return: dataFrame
+    """
+    col_names = data.columns
+    # check if smoothing signals exists
+    smooth = False
+    for col in col_names:
+        if "_smooth" in col:
+            smooth = True
+            break
+    rows, _ = data.shape
+    dff = data.copy()
+
+    xi = [hann_coefficient(i, rows) for i in range(rows)]
+    for name in names:
+        if smooth:
+            name += "_smooth"
+        dff[name + "hann"] = dff[name] * xi
     return dff
 
 

@@ -49,13 +49,22 @@ app.layout = html.Div([
                 labelStyle={'display': 'inline-block'}
             ),
             html.Label("Smoothing window size"),
-            html.Div(dcc.Slider(
-                id='smoothing_window',
-                min=1,
-                max=100,
-                value=3,
-                marks={str(i): str(i) for i in range(1, 101)},
-                step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
+            html.Div([
+                dcc.Slider(
+                    id='smoothing_window',
+                    min=1,
+                    max=300,
+                    value=3,
+                    step=1),
+                dcc.Input(
+                    id='smoothing_window_input',
+                    type='number',
+                    min=1,
+                    max=300,
+                    step=1,
+                    value=3
+                )
+            ], style={'columns': 2}),
 
             html.Div([
                 dcc.Graph(id='input_graph', style={'width': '100%', 'height': '100%'}),
@@ -77,9 +86,19 @@ app.layout = html.Div([
                         allowCross=False
                     )
                 ]),
-                html.Button('Export signals', id='pick_signals'),
+                html.Button('Export All', id='pick_signals'),
                 html.A('Export signals',
                        id='link-signals',
+                       download="data.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
+
+                html.Hr(),
+                html.Button('Export Selected', id='pick_selected'),
+                html.A('Export selected',
+                       id='link-signals1',
                        download="data.txt",
                        href="",
                        target="_blank",
@@ -127,13 +146,23 @@ app.layout = html.Div([
                 labelStyle={'display': 'inline-block'}
             ),
             html.Label("Smoothing window size"),
-            html.Div(dcc.Slider(
-                id='smoothing_window_spectrum',
-                min=1,
-                max=10,
-                value=3,
-                marks={str(i): str(i) for i in range(0, 10)},
-                step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
+
+            html.Div([
+                dcc.Slider(
+                    id='smoothing_window_spectrum',
+                    min=1,
+                    max=300,
+                    value=3,
+                    step=1),
+                dcc.Input(
+                    id='smoothing_window_input_spectrum',
+                    type='number',
+                    min=1,
+                    max=300,
+                    step=1,
+                    value=3
+                )
+            ], style={'columns': 2}),
 
             html.Div(dcc.Graph(id='spectrum_graph'),
                      style={'width': '100%', 'height': '100%'}
@@ -186,19 +215,40 @@ app.layout = html.Div([
                 labelStyle={'display': 'inline-block'}
             ),
             html.Label("Smoothing window size"),
-            html.Div(dcc.Slider(
-                id='smoothing_window_coherence',
-                min=1,
-                max=10,
-                value=3,
-                marks={str(i): str(i) for i in range(0, 10)},
-                step=None), style={'width': '50%', 'padding': '0px 20px 20px 20px'}),
+            html.Div([
+                dcc.Slider(
+                    id='smoothing_window_coherence',
+                    min=1,
+                    max=300,
+                    value=3,
+                    step=1),
+                dcc.Input(
+                    id='smoothing_window_input_coherence',
+                    type='number',
+                    min=1,
+                    max=300,
+                    step=1,
+                    value=3
+                )
+            ], style={'columns': 2}),
+
             html.Label("Points per segment"),
-            dcc.Input(
-                id='segment_len',
-                type='number',
-                value=256
-            ),
+            html.Div([
+                dcc.Slider(
+                    id='segment_len',
+                    min=1,
+                    max=5000,
+                    value=256,
+                    step=1),
+                dcc.Input(
+                    id='segment_len_input',
+                    type='number',
+                    min=1,
+                    step=1,
+                    value=256
+                )
+            ], style={'columns': 2}),
+
             html.Label(id='inspection'),
             html.Div([
                 dcc.Graph(id='coherence_graph', style={'width': '100%', 'height': '100%'}),
@@ -284,7 +334,7 @@ def parse_data(contents, filename):
 def upload_file(contents, filename):
     df = pd.DataFrame()
     time_range = ""
-    trp = [0.0, 1.0, 0.5]
+    trp = [None, None, None]
     if contents:
         df = parse_data(contents, filename)
         cols = df.columns
@@ -298,6 +348,112 @@ def upload_file(contents, filename):
             trp[0], trp[1], trp[2],
             trp[0], trp[1], trp[2],
             trp[0], trp[1], trp[2]]
+
+
+@app.callback(Output('smoothing_window', 'value'),
+              Output('smoothing_window_input', 'value'),
+              Input('smoothing_window', 'value'),
+              Input('smoothing_window_input', 'value')
+              )
+def set_smoothing_window(sldr, inpt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(trigger_id)
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'smoothing_window':
+        new_input = sldr
+    if trigger_id == 'smoothing_window_input':
+        new_slider = inpt
+
+    return [new_slider, new_input]
+
+
+@app.callback(Output('smoothing_window_spectrum', 'value'),
+              Output('smoothing_window_input_spectrum', 'value'),
+              Input('smoothing_window_spectrum', 'value'),
+              Input('smoothing_window_input_spectrum', 'value')
+              )
+def set_smoothing_window(sldr, inpt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(trigger_id)
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'smoothing_window_spectrum':
+        new_input = sldr
+    if trigger_id == 'smoothing_window_input_spectrum':
+        new_slider = inpt
+
+    return [new_slider, new_input]
+
+
+@app.callback(Output('smoothing_window_coherence', 'value'),
+              Output('smoothing_window_input_coherence', 'value'),
+              Input('smoothing_window_coherence', 'value'),
+              Input('smoothing_window_input_coherence', 'value')
+              )
+def set_smoothing_window(sldr, inpt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(trigger_id)
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'smoothing_window_coherence':
+        new_input = sldr
+    if trigger_id == 'smoothing_window_input_coherence':
+        new_slider = inpt
+
+    return [new_slider, new_input]
+
+
+@app.callback(Output('segment_len', 'value'),
+              Output('segment_len_input', 'value'),
+              Input('segment_len', 'value'),
+              Input('segment_len_input', 'value')
+              )
+def set_smoothing_window(sldr, inpt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(trigger_id)
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'segment_len':
+        new_input = sldr
+    if trigger_id == 'segment_len_input':
+        new_slider = inpt
+
+    return [new_slider, new_input]
+
+
+@app.callback(Output('smoothing_window', 'max'),
+              Output('smoothing_window_input', 'max'),
+              Output('smoothing_window_spectrum', 'max'),
+              Output('smoothing_window_input_spectrum', 'max'),
+              Output('smoothing_window_coherence', 'max'),
+              Output('smoothing_window_input_coherence', 'max'),
+              Output('segment_len', 'max'),
+              Output('segment_len_input', 'max'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              State('t_start', 'min'),
+              State('t_start', 'max'),
+              State('t_start', 'step')
+              )
+def update_smoothing_windows(t_start, t_end, t_min, t_max, t_step):
+    # set time range if None
+    val1 = t_min if t_start is None else t_start
+    val2 = t_max if t_end is None else t_end
+    step = 1.0 if t_step is None else t_step
+    mx = 100
+    if not (None in [val1, val2, t_step]):
+        mx = (val2 - val1) / step
+    mx2 = int(mx / 2)
+    return [mx2, mx2, mx2, mx2, mx2, mx2, mx, mx]
 
 
 @app.callback(Output('input_graph', 'figure'),
@@ -380,9 +536,6 @@ def export_signal(n_clicks, t_start, t_end, t_range, loading_data, t_min, t_max,
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_signals':
-        print("in export signal")
-        print(n_clicks)
-        print(loading_data is None)
         dff = pd.DataFrame()
         # set time range if None
         val1 = t_min if t_start is None else t_start
@@ -401,6 +554,48 @@ def export_signal(n_clicks, t_start, t_end, t_range, loading_data, t_min, t_max,
     # change time
     if triggered_id == 't_start' or triggered_id == 't_end' or triggered_id == 'time_range_slider':
         return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
+@app.callback(Output('link-signals1', 'href'),
+              Output('link-signals1', 'hidden'),
+              Input('pick_selected', 'n_clicks'),
+              Input('signal_1', 'value'),
+              Input('signal_filter', 'value'),
+              Input('smoothing_window', 'value'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              Input('time_range_slider', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'min'),
+              State('t_start', 'max'),
+              State('t_start', 'step'))
+def export_signal(n_clicks, yy, signal_filter, smoothing, t_start, t_end, t_range, loading_data, t_min, t_max, t_step):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_selected':
+        dff = pd.DataFrame()
+        # set time range if None
+        val1 = t_min if t_start is None else t_start
+        val2 = t_max if t_end is None else t_end
+        dt = 0.0 if t_step is None else t_step / 2
+        if not (loading_data is None):
+            df = pd.read_json(loading_data, orient='split')
+            if not df.empty:
+                cols = df.columns
+                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+                dff.reset_index(drop=True, inplace=True)
+                dff = dff[[cols[0]] + yy]
+                # request smoothing signals
+                if 'SM' in signal_filter:
+                    dff = prepare.set_smoothing_symm(dff, yy, smoothing, 1)
+                if 'HW' in signal_filter:
+                    dff = prepare.set_correction_hann(dff, yy)
+        csv_string = dff.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    # change something
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
 @app.callback(Output('spectrum_graph', 'figure'),
