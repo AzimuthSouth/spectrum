@@ -44,5 +44,5 @@ class TestSchematisationData(unittest.TestCase):
         self.setdata()
         res = numpy.array([schematisation.extreme_count(self.x1[:, 1]), schematisation.extreme_count(self.x2[:, 1]),
                            schematisation.extreme_count(self.x3[:, 1])])
-        ans = numpy.array([0, 3, 7])
+        ans = numpy.array([2, 5, 9])
         self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-7, True)

@@ -1,6 +1,7 @@
 from collections import defaultdict
 import math
 import numpy
+import pandas
 
 
 def merge(x, ind, d):
@@ -134,14 +135,14 @@ def input_stats(data):
     return [mn, s2, st, kp]
 
 
-'''
-# pick extremes from data series, 
-# where range between nearby extremes greater then delta 
-# 1st ans last points are extremes
-'''
-
-
 def pick_extremes(data, ind):
+    """
+    pick extremes from data series,
+    1st ans last points are extremes
+    :param data: data array
+    :param ind: column for pick extremes
+    :return: array of selected rows
+    """
     x = data[:, ind]
     res = [data[0]]
     for i in range(1, len(data) - 1):
@@ -204,7 +205,7 @@ def pick_ranges(data, ind):
     return res
 
 
-# calc repetition rate
+# calc 1D repetition rate
 def repetition_rate(data, width=None, count=None):
     counts = defaultdict()
     if count is not None:
@@ -223,8 +224,43 @@ def repetition_rate(data, width=None, count=None):
     return sorted(counts.items())
 
 
+# calc correlation table
+def correlation_table(cycles, name1, name2, count=10):
+    """
+    Calc correlation table min-max or mean-range for loading input
+    :param cycles: dataFrame with extracted half-cycles
+    :param count:  class numbers
+    :param name1: variable 1 (min or mean)
+    :param name2: variable 2 (max or range)
+    :return: dataFrame with correlation table
+    """
+    rows, _ = cycles.shape
+    # set classes width
+    w_row = (cycles[name1].max() - cycles[name1].min()) / count
+    w_col = (cycles[name2].max() - cycles[name2].min()) / count
+    # set classes names
+    name_rows = []
+    name_cols = []
+    for i in range(count):
+        r1 = cycles[name1].min() + w_row * i
+        r2 = cycles[name1].min() + w_row * (i + 1)
+        c1 = cycles[name2].min() * w_col * i
+        c2 = cycles[name2].min() * w_col * (i + 1)
+        name_rows.append(":.3f{}-:.3f{}".format(r1, r2))
+        name_cols.append(":.3f{}-:.3f{}".format(c1, c2))
+
+    res = numpy.zeros((count, count))
+    for i in range(rows):
+        ind1 = int(math.ceil(cycles.iloc[i][name1] / w_row))
+        ind2 = int(math.ceil(cycles.iloc[i][name2] / w_col))
+        res[ind1][ind2] += cycles.iloc[i]['Count']
+
+    df = pandas.DataFrame(res, columns=name_cols, index=name_rows)
+    return df
+
+
 # calc range and mean values for cycle
-def range_mean(x1, x2, c):
+def cycle_parameters(x1, x2, c):
     # return range, count, mean, min, max
     return [abs(x1 - x2), c, (x1 + x2) / 2, min(x1, x2), max(x1, x2)]
 
@@ -258,20 +294,26 @@ def pick_cycles(data):
                 break
             elif len(stack) == 3:
                 # left half-cycle
-                res.append(range_mean(a, b, 0.5))
+                res.append(cycle_parameters(a, b, 0.5))
                 stack = stack[1:]
             else:
                 # left cycle
-                res.append(range_mean(a, b, 1))
+                res.append(cycle_parameters(a, b, 1))
                 last = stack[-1]
                 stack = stack[:-3]
                 stack.append(last)
     else:
         while len(stack) > 1:
-            res.append(range_mean(stack[0], stack[1], 0.5))
+            res.append(cycle_parameters(stack[0], stack[1], 0.5))
             stack = stack[1:]
 
     return res
+
+
+def pick_cycles_as_df(data):
+    res = pick_cycles(data)
+    df = pandas.DataFrame(res, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
+    return df
 
 
 def count_cycles(data, ndigits=None, n_seg=None, seg_size=None):

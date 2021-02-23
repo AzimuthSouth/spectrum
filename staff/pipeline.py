@@ -92,9 +92,10 @@ def signal_processing(df, name, eps):
     sig_merge = schematisation.merge(zip(time, sig), 1, eps)
     sig_ext = schematisation.pick_extremes(sig_merge, 1)
 
-    # there should be detrend!!!
+    # there should be detrend??
 
     # initial statistics
     stats = schematisation.input_stats(sig_ext)
 
+    #
 
