@@ -6,10 +6,20 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 
 
-def merge(x, ind, d):
+def merge(df, name, d):
+    """
+
+    :param df: dataFrame
+    :param name: merge signal
+    :param d: merge width
+    :return: dataFrame
+    """
     # x - input, d - class width
+    col_names = df.columns
+    x = list(zip(df[col_names[0]].to_numpy(), df[name].to_numpy()))
     res = [x[0]]
     buf = []
+    ind = 1
     for i in range(1, len(x)):
         if len(buf) == 0:
             buf.append(res[- 1])
@@ -31,8 +41,8 @@ def merge(x, ind, d):
             if abs(res[-1][ind] - x[i][ind]) <= d:
                 res = res[:-1]
             res.append(x[i])
-
-    return numpy.array(res)
+    dff = pandas.DataFrame(res, columns=col_names)
+    return dff
 
 
 def average_array(buf):
@@ -129,29 +139,39 @@ def mean_count(x):
     return res
 
 
-def input_stats(data):
-    mn = numpy.mean(data[:, 1])
-    s2 = numpy.var(data[:, 1])
-    st = numpy.std(data[:, 1])
-    kp = mean_count(data[:, 1]) / extreme_count(data[:, 1])
+def input_stats(df, name):
+    """
+    input statistic for signal
+    :param df: dataFrame
+    :param name: column name
+    :return: mean, variance, standart deviation, reg.koefficient
+    """
+    data = df[name].to_numpy()
+    mn = numpy.mean(data)
+    s2 = numpy.var(data)
+    st = numpy.std(data)
+    kp = mean_count(data) / extreme_count(data)
     return [mn, s2, st, kp]
 
 
-def pick_extremes(data, ind):
+def pick_extremes(df, name):
     """
     pick extremes from data series,
     1st ans last points are extremes
-    :param data: data array
-    :param ind: column for pick extremes
-    :return: array of selected rows
+    :param df: dataFrame
+    :param name: column for pick extremes
+    :return: dataFrame
     """
-    x = data[:, ind]
+    col_names = df.columns
+    x = df[name].to_numpy()
+    data = list(zip(df[col_names[0]].to_numpy(), df[name].to_numpy()))
     res = [data[0]]
     for i in range(1, len(data) - 1):
         if is_extreme(x[i - 1:i + 2]):
             res.append(data[i])
     res.append(data[-1])
-    return numpy.array(res)
+    dff = pandas.DataFrame(res, columns=col_names)
+    return dff
 
 
 # schematization of data series by extremes method
@@ -268,12 +288,14 @@ def correlation_table(cycles, name1, name2, count=10):
 
     df = pandas.DataFrame(res, columns=name_cols, index=name_rows)
     df.style.background_gradient(cmap='Blues', axis=None)
+    '''
     plt.pcolor(df, cmap='GnBu')
     plt.yticks(numpy.arange(0.5, len(df.index), 1), df.index, fontsize=10)
     plt.xticks(numpy.arange(0.5, len(df.columns), 1), df.columns, fontsize=10, rotation=90)
     cb = plt.colorbar()
     cb.ax.tick_params(labelsize=10)
     plt.show()
+    '''
     return df
 
 
@@ -294,12 +316,18 @@ def _get_round_function(ndigits=None):
 
 
 # extract cycles from extreme array
-def pick_cycles(data):
+def pick_cycles(df, name):
+    """
+
+    :param df: dataFrame
+    :param name: column name
+    :return:
+    """
     stack = []
     res = []
-    x = data[:, 1]
+    x = df[name].to_numpy()
 
-    for i in range(len(data)):
+    for i in range(len(x)):
         stack.append(x[i])
 
         while len(stack) >= 3:
@@ -328,8 +356,8 @@ def pick_cycles(data):
     return res
 
 
-def pick_cycles_as_df(data):
-    res = pick_cycles(data)
+def pick_cycles_as_df(df, name):
+    res = pick_cycles(df, name)
     df = pandas.DataFrame(res, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
     return df
 
