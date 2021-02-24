@@ -48,6 +48,17 @@ app.layout = html.Div([
                 value=['SM', 'HW'],
                 labelStyle={'display': 'inline-block'}
             ),
+
+            dcc.RadioItems(
+                id='graph_lines',
+                options=[
+                    {'label': 'lines', 'value': 'LL'},
+                    {'label': 'lines+markers', 'value': 'LM'}
+                ],
+                value='LM',
+                labelStyle={'display': 'inline-block'}
+            ),
+
             html.Label("Smoothing window size"),
             html.Div([
                 dcc.Slider(
@@ -145,6 +156,15 @@ app.layout = html.Div([
                 value=['SM', 'HW'],
                 labelStyle={'display': 'inline-block'}
             ),
+            dcc.RadioItems(
+                id='spectrum_lines',
+                options=[
+                    {'label': 'lines', 'value': 'LL'},
+                    {'label': 'lines+markers', 'value': 'LM'}
+                ],
+                value='LM',
+                labelStyle={'display': 'inline-block'}
+            ),
             html.Label("Smoothing window size"),
 
             html.Div([
@@ -212,6 +232,15 @@ app.layout = html.Div([
                     {'label': 'hann-weighting', 'value': 'HW'}
                 ],
                 value=['SM', 'HW'],
+                labelStyle={'display': 'inline-block'}
+            ),
+            dcc.RadioItems(
+                id='coherence_lines',
+                options=[
+                    {'label': 'lines', 'value': 'LL'},
+                    {'label': 'lines+markers', 'value': 'LM'}
+                ],
+                value='LM',
                 labelStyle={'display': 'inline-block'}
             ),
             html.Label("Smoothing window size"),
@@ -468,12 +497,13 @@ def update_smoothing_windows(t_start, t_end, t_min, t_max, t_step):
               Input('t_start', 'value'),
               Input('t_end', 'value'),
               Input('time_range_slider', 'value'),
+              Input('graph_lines', 'value'),
               State('loading_data', 'children'),
               State('t_start', 'min'),
               State('t_start', 'max'),
               State('t_start', 'step'))
 def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
-                 t_start, t_end, t_range, loading_data, t_min, t_max, t_step):
+                 t_start, t_end, t_range, mode, loading_data, t_min, t_max, t_step):
     # set time range if None
     val1 = t_min if t_start is None else t_start
     val2 = t_max if t_end is None else t_end
@@ -490,6 +520,8 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
         val1 = t_range[0]
         val2 = t_range[1]
 
+    gmode = 'lines+markers' if mode == 'LM' else 'lines'
+
     data = []
     if signal_1:
         df = pd.read_json(loading_data, orient='split')
@@ -500,15 +532,15 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
             sig = dff[[cols[0], yy]]
             print(sig)
 
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode='lines+markers', name=yy))
+            data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode=gmode, name=yy))
 
             if 'SM' in signal_filter:
                 sig = prepare.smoothing_symm(sig, yy, k, 1)
-                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode='lines+markers', name='smooth'))
+                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode=gmode, name='smooth'))
 
             if 'HW' in signal_filter:
                 sig = prepare.correction_hann(sig, yy)
-                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode='lines+markers', name='hann_correction'))
+                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode=gmode, name='hann_correction'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -606,13 +638,21 @@ def export_signal(n_clicks, yy, signal_filter, smoothing, t_start, t_end, t_rang
               Input('smoothing_window_spectrum', 'value'),
               Input('graph_width1', 'value'),
               Input('graph_height1', 'value'),
+              Input('spectrum_lines', 'value'),
               State('t_start', 'value'),
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_height,
+def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_height, mode,
                  t_start, t_end, t_step, loading_data):
-    fig = make_subplots(rows=2, cols=1)
+    if spectrum_1 == spectrum_2:
+        gname = 'power spectral density'
+        fig = make_subplots(rows=1, cols=1)
+    else:
+        gname = 'cross-spectrum'
+        fig = make_subplots(rows=2, cols=1)
+    gmode = 'lines+markers' if mode == 'LM' else 'lines'
+
     if spectrum_1 and spectrum_2:
         df = pd.read_json(loading_data, orient='split')
         cols = df.columns
@@ -639,12 +679,17 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
         mod, phase = analyse.cross_spectrum_mod_fas(g_xy)
         mod *= hann_koef
 
-        fig.add_trace(go.Scatter(x=f, y=mod, mode='lines+markers', name='cross_spectrum'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=f, y=phase, mode='lines+markers', name='phase'), row=2, col=1)
-    fig.update_xaxes(title_text="Frequencies", row=1, col=1)
-    fig.update_xaxes(title_text="Frequencies", row=2, col=1)
-    fig.update_yaxes(title_text="Cross Spectrum Module", row=1, col=1)
-    fig.update_yaxes(title_text="Cross Spectrum Phase", row=2, col=1)
+        fig.add_trace(go.Scatter(x=f, y=mod, mode=gmode, name=gname), row=1, col=1)
+        if gname == 'cross-spectrum':
+            fig.add_trace(go.Scatter(x=f, y=phase, mode=gmode, name='phase'), row=2, col=1)
+    if gname == 'cross-spectrum':
+        fig.update_xaxes(title_text="Frequencies", row=1, col=1)
+        fig.update_xaxes(title_text="Frequencies", row=2, col=1)
+        fig.update_yaxes(title_text="Cross Spectrum Module", row=1, col=1)
+        fig.update_yaxes(title_text="Cross Spectrum Phase", row=2, col=1)
+    else:
+        fig.update_xaxes(title_text="Frequencies", row=1, col=1)
+        fig.update_yaxes(title_text="Power Spectral Density", row=1, col=1)
     fig.update_layout(width=150 * graph_width, height=100 * graph_height)
     return fig
 
@@ -695,14 +740,16 @@ def export_cross_spectrum(n_clicks, t_start, t_end, spectrum_filter, k, loading_
               Input('segment_len', 'value'),
               Input('graph_width2', 'value'),
               Input('graph_height2', 'value'),
+              Input('coherence_lines', 'value'),
               State('t_start', 'value'),
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, graph_width, graph_height,
-                 t_start, t_end, t_step, loading_data):
+                 mode, t_start, t_end, t_step, loading_data):
     data = []
     if coherence_1 and coherence_2:
+        gmode = 'lines+markers' if mode == 'LM' else 'lines'
         df = pd.read_json(loading_data, orient='split')
         cols = df.columns
         val1 = df[cols[0]].iloc[0] if t_start is None else t_start
@@ -725,7 +772,7 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
         f, c_xx = signal.coherence(sig1[coherence_1], sig2[coherence_2],
                                    (1.0 / trp[2]), window="boxcar", nperseg=segment_len)
 
-        data.append(go.Scatter(x=f, y=c_xx, mode='lines+markers', name='cross_spectrum'))
+        data.append(go.Scatter(x=f, y=c_xx, mode=gmode, name='coherence'))
 
     layout = go.Layout(xaxis={'title': 'Frequencies'},
                        yaxis={'title': 'Coherence'},
