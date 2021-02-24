@@ -2,6 +2,8 @@ from collections import defaultdict
 import math
 import numpy
 import pandas
+import matplotlib.pyplot as plt
+import plotly.express as px
 
 
 def merge(x, ind, d):
@@ -236,26 +238,42 @@ def correlation_table(cycles, name1, name2, count=10):
     """
     rows, _ = cycles.shape
     # set classes width
-    w_row = (cycles[name1].max() - cycles[name1].min()) / count
-    w_col = (cycles[name2].max() - cycles[name2].min()) / count
+    print("Min: from={}, to={}".format(cycles[name1].max(), cycles[name1].min()))
+    print("Max: from={}, to={}".format(cycles[name2].max(), cycles[name2].min()))
+    mmin = min(cycles[name1].min(), cycles[name2].min())
+    mmax = max(cycles[name1].max(), cycles[name2].max())
+    print("min={}, max={}".format(mmin, mmax))
+    w = (mmax - mmin) / (count - 1)
+
+    print("w={}".format(w))
     # set classes names
     name_rows = []
     name_cols = []
     for i in range(count):
-        r1 = cycles[name1].min() + w_row * i
-        r2 = cycles[name1].min() + w_row * (i + 1)
-        c1 = cycles[name2].min() * w_col * i
-        c2 = cycles[name2].min() * w_col * (i + 1)
-        name_rows.append(":.3f{}-:.3f{}".format(r1, r2))
-        name_cols.append(":.3f{}-:.3f{}".format(c1, c2))
-
+        r1 = mmin + w * i - w / 2
+        r2 = mmin + w * i + w / 2
+        r = mmin + w * i
+        # name_rows.append("{:.3f}-{:.3f}".format(r1, r2))
+        # name_cols.append("{:.3f}-{:.3f}".format(r1, r2))
+        name_rows.append("{:.3f}".format(r))
+        name_cols.append("{:.3f}".format(r))
+    print(name_rows)
+    print(name_cols)
     res = numpy.zeros((count, count))
     for i in range(rows):
-        ind1 = int(math.ceil(cycles.iloc[i][name1] / w_row))
-        ind2 = int(math.ceil(cycles.iloc[i][name2] / w_col))
+        ind1 = int(math.trunc(cycles.iloc[i][name1] / w)) - 1
+        ind2 = int(math.trunc(cycles.iloc[i][name2] / w)) - 1
+        # print("i={}, j={}, ind1={}, ind2={}".format(cycles.iloc[i][name1], cycles.iloc[i][name2], ind1, ind2))
         res[ind1][ind2] += cycles.iloc[i]['Count']
 
     df = pandas.DataFrame(res, columns=name_cols, index=name_rows)
+    df.style.background_gradient(cmap='Blues', axis=None)
+    plt.pcolor(df, cmap='GnBu')
+    plt.yticks(numpy.arange(0.5, len(df.index), 1), df.index, fontsize=10)
+    plt.xticks(numpy.arange(0.5, len(df.columns), 1), df.columns, fontsize=10, rotation=90)
+    cb = plt.colorbar()
+    cb.ax.tick_params(labelsize=10)
+    plt.show()
     return df
 
 
@@ -275,7 +293,7 @@ def _get_round_function(ndigits=None):
     return func
 
 
-# extract cycles from extreme series
+# extract cycles from extreme array
 def pick_cycles(data):
     stack = []
     res = []

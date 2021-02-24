@@ -3,7 +3,9 @@ from staff import prepare
 from staff import draw
 from staff import analyse
 from staff import schematisation
+from staff import pipeline
 from test import test_prepare
+import pandas as pd
 
 
 def test():
@@ -143,3 +145,36 @@ def test10():
     print(len(data4))
     print(schematisation.mean_count(data4[:, 1]))
     # print(schematisation.extremes_method(data4, 10))
+
+
+def test11():
+    df = pd.DataFrame(list(zip(range(100), numpy.ones(100), 2 * numpy.ones(100))), columns=['x', 'y', 'z'])
+    print(pipeline.signal_processing(df, 'y', 1.0, 1))
+
+
+def test12():
+    # df = pandas.DataFrame(res, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
+    arr = [[2.0, 1.0, 5.0, 4.0, 6.0],
+           [5.0, 1.0, 6.5, 4.0, 9.0],
+           [1.0, 1.0, 8.5, 8.0, 9.0],
+           [1.0, 1.0, 8.5, 8.0, 9.0],
+           [3.0, 1.0, 7.5, 6.0, 9.0],
+           [1.0, 1.0, 6.5, 6.0, 7.0],
+           [4.0, 1.0, 5.0, 3.0, 7.0],
+           [1.0, 1.0, 7.5, 3.0, 4.0],
+           [2.0, 1.0, 3.0, 2.0, 4.0],
+           [6.0, 1.0, 5.0, 2.0, 8.0],
+           [1.0, 1.0, 7.5, 7.0, 8.0],
+           [5.0, 1.0, 9.5, 7.0, 12.0],
+           [7.0, 1.0, 8.5, 5.0, 12.0],
+           [1.0, 1.0, 5.5, 5.0, 6.0],
+           [5.0, 1.0, 3.5, 1.0, 6.0],
+           [4.0, 1.0, 3.0, 1.0, 5.0],
+           [2.0, 1.0, 4.0, 3.0, 5.0],
+           [7.0, 1.0, 6.5, 3.0, 10.0],
+           [6.0, 1.0, 7.0, 4.0, 10.0],
+           [2.0, 1.0, 5.0, 4.0, 6.0],
+           [1.0, 1.0, 5.5, 5.0, 6.0],
+           [3.0, 1.0, 6.5, 5.0, 8.0]]
+    df = pd.DataFrame(arr, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
+    print(schematisation.correlation_table(df, 'Range', 'Mean', 12))

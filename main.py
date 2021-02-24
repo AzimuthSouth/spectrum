@@ -10,6 +10,6 @@ from research import examples
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    examples.test10()
+    examples.test12()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
