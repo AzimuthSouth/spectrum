@@ -23,7 +23,7 @@ server = app.server
 
 
 def mark(i):
-    if i % 10 == 1:
+    if i % 10 == 0 or i == 1:
         return "{}%".format(i)
     return ''
 
@@ -382,9 +382,9 @@ app.layout = html.Div([
             html.Div([
                 dcc.Slider(
                     id='amplitude_width',
-                    marks={str(i): mark(i) for i in range(1, 101)},
+                    marks={str(i): mark(i) for i in range(1, 51)},
                     min=1,
-                    max=100,
+                    max=50,
                     value=2,
                     step=None),
                 dcc.Input(
@@ -969,6 +969,8 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
 def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height, eps, m, code,
                  t_start, t_end, t_step, loading_data):
     tbl = pd.DataFrame()
+    x_title = ''
+    y_title = ''
     if signal1:
         df = pd.read_json(loading_data, orient='split')
         cols = df.columns
@@ -991,12 +993,23 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
 
         if code == 'MM':
             tbl = schematisation.correlation_table(cycles, 'Max', 'Min', m)
+            x_title = 'Min'
+            y_title = 'Max'
         if code == 'MR':
             tbl = schematisation.correlation_table(cycles, 'Range', 'Mean', m)
+            x_title = 'Mean'
+            y_title = 'Range'
 
     print(tbl)
     fig = px.imshow(tbl, color_continuous_scale='GnBu')
-    fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10))
+    layout = go.Layout(xaxis={'title': 'Time'},
+                       yaxis={'title': 'Input'},
+                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                       hovermode='closest',
+                       width=150 * graph_width, height=100 * graph_height)
+
+    fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10),
+                      xaxis={'title': x_title}, yaxis={'title': y_title})
     return fig
 
 

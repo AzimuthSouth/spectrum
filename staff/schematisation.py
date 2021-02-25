@@ -280,14 +280,19 @@ def correlation_table(cycles, name1, name2, count=10):
     print(name_rows)
     print(name_cols)
     res = numpy.zeros((count, count))
+    if w == 0:
+        res += cycles.iloc[0]['Count']
     for i in range(rows):
-        ind1 = int(math.trunc((cycles.iloc[i][name1] - mmin)/ w))
-        ind2 = int(math.trunc((cycles.iloc[i][name2] - mmin)/ w))
+        ind1 = 0
+        ind2 = 0
+        if w > 0:
+            ind1 = int(math.trunc((cycles.iloc[i][name1] - mmin)/ w))
+            ind2 = int(math.trunc((cycles.iloc[i][name2] - mmin)/ w))
         print("i={}, j={}, ind1={}, ind2={}".format(cycles.iloc[i][name1], cycles.iloc[i][name2], ind1, ind2))
         res[ind1][ind2] += cycles.iloc[i]['Count']
 
+
     df = pandas.DataFrame(res, columns=name_cols, index=name_rows)
-    df.style.background_gradient(cmap='Blues', axis=None)
     '''
     plt.pcolor(df, cmap='GnBu')
     plt.yticks(numpy.arange(0.5, len(df.index), 1), df.index, fontsize=10)
