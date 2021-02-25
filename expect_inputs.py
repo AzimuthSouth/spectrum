@@ -435,7 +435,8 @@ app.layout = html.Div([
                     value=10),
                 dcc.Input(
                     id='class_number_input',
-                    type='number'
+                    type='number',
+                    value=10
                 )
             ], style={'columns': 2}),
 
@@ -521,7 +522,8 @@ def upload_file(contents, filename):
         df = parse_data(contents, filename)
         cols = df.columns
         trp = prepare.calc_time_range(df[cols[0]].to_numpy())
-        time_range = f"Time from {trp[0]} to {trp[1]}, mean time step is {trp[2]:.3e}, time step deviation is {trp[3]:.3e}"
+        time_range = f"Time from {trp[0]} to {trp[1]}, mean time step is {trp[2]:.3e}, " \
+                     f"time step deviation is {trp[3]:.3e}"
     options = get_options(df.columns)
     return [df.to_json(date_format='iso', orient='split'),
             options, filename, time_range,
@@ -939,6 +941,7 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
     fig = go.Figure(data=data, layout=layout)
     return fig
 
+
 @app.callback(Output('table_map', 'figure'),
               # Output('spectrum_graph1', 'figure'),
               Input('schematisation', 'value'),
@@ -947,7 +950,6 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
               Input('smoothing_window_schem', 'value'),
               Input('graph_width4', 'value'),
               Input('graph_height4', 'value'),
-              Input('spectrum_lines', 'value'),
               Input('amplitude_width_input', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
@@ -955,11 +957,9 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height, mode, eps, m, code,
+def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height, eps, m, code,
                  t_start, t_end, t_step, loading_data):
-    gmode = 'lines+markers' if mode == 'LM' else 'lines'
     tbl = pd.DataFrame()
-    data = []
     if signal:
         df = pd.read_json(loading_data, orient='split')
         cols = df.columns
@@ -980,29 +980,6 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
         cycles = schematisation.pick_cycles_as_df(sig, signal)
         print(cycles)
 
-        arr = [[2.0, 1.0, 5.0, 4.0, 6.0],
-               [5.0, 1.0, 6.5, 4.0, 9.0],
-               [1.0, 1.0, 8.5, 8.0, 9.0],
-               [1.0, 1.0, 8.5, 8.0, 9.0],
-               [3.0, 1.0, 7.5, 6.0, 9.0],
-               [1.0, 1.0, 6.5, 6.0, 7.0],
-               [4.0, 1.0, 5.0, 3.0, 7.0],
-               [1.0, 1.0, 7.5, 3.0, 4.0],
-               [2.0, 1.0, 3.0, 2.0, 4.0],
-               [6.0, 1.0, 5.0, 2.0, 8.0],
-               [1.0, 1.0, 7.5, 7.0, 8.0],
-               [5.0, 1.0, 9.5, 7.0, 12.0],
-               [7.0, 1.0, 8.5, 5.0, 12.0],
-               [1.0, 1.0, 5.5, 5.0, 6.0],
-               [5.0, 1.0, 3.5, 1.0, 6.0],
-               [4.0, 1.0, 3.0, 1.0, 5.0],
-               [2.0, 1.0, 4.0, 3.0, 5.0],
-               [7.0, 1.0, 6.5, 3.0, 10.0],
-               [6.0, 1.0, 7.0, 4.0, 10.0],
-               [2.0, 1.0, 5.0, 4.0, 6.0],
-               [1.0, 1.0, 5.5, 5.0, 6.0],
-               [3.0, 1.0, 6.5, 5.0, 8.0]]
-        cycles = pd.DataFrame(arr, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
         if code == 'MM':
             tbl = schematisation.correlation_table(cycles, 'Max', 'Min', m)
         if code == 'MR':
@@ -1010,9 +987,8 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
 
     print(tbl)
 
-    fig = px.imshow(tbl)
+    fig = px.imshow(tbl, color_continuous_scale='GnBu')
     return fig
-
 
 
 @app.callback(Output('input_stats', 'children'),
@@ -1065,18 +1041,21 @@ def amplitude_filter(sldr, inpt, signal, t_start, t_end, t_min, t_max, t_step, c
     current_range = cur_max
 
     if trigger_id == 'schematisation':
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
-        current_range = dff[signal].max() - dff[signal].min()
-        current_inpt = current_slider * current_range / 100.0
+        if signal:
+            df = pd.read_json(loading_data, orient='split')
+            cols = df.columns
+            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+            dff.reset_index(drop=True, inplace=True)
+            current_range = dff[signal].max() - dff[signal].min()
+            current_inpt = current_slider * current_range / 100.0
 
     if trigger_id == 'amplitude_width':
-        current_inpt = current_slider * current_range / 100.0
+        if signal:
+            current_inpt = current_slider * current_range / 100.0
 
     if trigger_id == 'amplitude_width_input':
-        current_slider = current_inpt / current_range * 100
+        if signal:
+            current_slider = current_inpt / current_range * 100
 
     print('sldr={}, inpt={}, range={}'.format(current_slider, current_inpt, current_range))
 

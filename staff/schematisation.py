@@ -281,9 +281,9 @@ def correlation_table(cycles, name1, name2, count=10):
     print(name_cols)
     res = numpy.zeros((count, count))
     for i in range(rows):
-        ind1 = int(math.trunc(cycles.iloc[i][name1] / w)) - 1
-        ind2 = int(math.trunc(cycles.iloc[i][name2] / w)) - 1
-        # print("i={}, j={}, ind1={}, ind2={}".format(cycles.iloc[i][name1], cycles.iloc[i][name2], ind1, ind2))
+        ind1 = int(math.trunc((cycles.iloc[i][name1] - mmin)/ w))
+        ind2 = int(math.trunc((cycles.iloc[i][name2] - mmin)/ w))
+        print("i={}, j={}, ind1={}, ind2={}".format(cycles.iloc[i][name1], cycles.iloc[i][name2], ind1, ind2))
         res[ind1][ind2] += cycles.iloc[i]['Count']
 
     df = pandas.DataFrame(res, columns=name_cols, index=name_rows)
