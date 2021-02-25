@@ -17,7 +17,6 @@ import urllib
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-# app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
 
@@ -112,7 +111,7 @@ app.layout = html.Div([
                         allowCross=False
                     )
                 ]),
-                html.Button('Export All', id='pick_signals'),
+                html.Button('Export signals', id='pick_signals'),
                 html.A('Export signals',
                        id='link-signals',
                        download="data.txt",
@@ -120,16 +119,11 @@ app.layout = html.Div([
                        target="_blank",
                        hidden=True,
                        style={'textAlign': 'right'}),
+                dcc.Checklist(
+                    id='all_signal',
+                    options=[{'label': 'all signals', 'value': 'ALL'}]
+                    ),
 
-                html.Hr(),
-                html.Button('Export Selected', id='pick_selected'),
-                html.A('Export selected',
-                       id='link-signals1',
-                       download="data.txt",
-                       href="",
-                       target="_blank",
-                       hidden=True,
-                       style={'textAlign': 'right'}),
                 html.Hr(),
                 html.Div([
                     html.Label("Resize graph"),
@@ -211,6 +205,11 @@ app.layout = html.Div([
                    target="_blank",
                    hidden=True,
                    style={'textAlign': 'right'}),
+            dcc.Checklist(
+                    id='all_spectrum',
+                    options=[{'label': 'all signals', 'value': 'ALL'}]
+                    ),
+
             html.Div([
                 html.Label("Resize graph"),
                 dcc.Slider(
@@ -305,6 +304,11 @@ app.layout = html.Div([
                        target="_blank",
                        hidden=True,
                        style={'textAlign': 'right'}),
+                dcc.Checklist(
+                    id='all_coherence',
+                    options=[{'label': 'all signals', 'value': 'ALL'}]
+                    ),
+
                 html.Div([
                     html.Label("Resize graph"),
                     dcc.Slider(
@@ -349,7 +353,7 @@ app.layout = html.Div([
                     {'label': 'merged', 'value': 'MG'},
                     {'label': 'extremes', 'value': 'EX'}
                 ],
-                value=['SG', 'EX'],
+                value=['MG', 'EX'],
                 labelStyle={'display': 'inline-block'}
             ),
             dcc.RadioItems(
@@ -398,14 +402,16 @@ app.layout = html.Div([
             html.Div([
                 dcc.Graph(id='schem_graph', style={'width': '100%', 'height': '100%'}),
                 html.Hr(),
-                html.Button('Export table', id='pick_table'),
-                html.A('Export table',
-                       id='link-table',
-                       download="corr_table.txt",
+
+                html.Button('Export cycles', id='pick_cycles'),
+                html.A('Export cycles',
+                       id='link-cycles',
+                       download="cycles.txt",
                        href="",
                        target="_blank",
                        hidden=True,
                        style={'textAlign': 'right'}),
+
                 html.Div([
                     html.Label("Resize graph"),
                     dcc.Slider(
@@ -451,6 +457,15 @@ app.layout = html.Div([
 
             html.Div([
                 dcc.Graph(id='table_map', style={'width': '100%', 'height': '100%'}),
+                html.Hr(),
+                html.Button('Export table', id='pick_table'),
+                html.A('Export table',
+                       id='link-table',
+                       download="corr_table.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
                 html.Hr(),
                 html.Div([
                     html.Label("Resize graph"),
@@ -684,7 +699,7 @@ def update_smoothing_windows(t_start, t_end, t_min, t_max, t_step):
     val1 = t_min if t_start is None else t_start
     val2 = t_max if t_end is None else t_end
     step = 1.0 if t_step is None else t_step
-    mx = 100
+    mx = 256
     if not (None in [val1, val2, t_step]):
         mx = (val2 - val1) / step
     mx2 = int(mx / 2)
@@ -761,57 +776,24 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
 
 @app.callback(Output('link-signals', 'href'),
               Output('link-signals', 'hidden'),
+              Input('all_signal', 'value'),
               Input('pick_signals', 'n_clicks'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
-              Input('time_range_slider', 'value'),
-              State('loading_data', 'children'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'))
-def export_signal(n_clicks, t_start, t_end, t_range, loading_data, t_min, t_max, t_step):
-    ctx = dash.callback_context
-    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    # button click
-    if triggered_id == 'pick_signals':
-        dff = pd.DataFrame()
-        # set time range if None
-        val1 = t_min if t_start is None else t_start
-        val2 = t_max if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        if not (loading_data is None):
-            df = pd.read_json(loading_data, orient='split')
-            if not df.empty:
-                cols = df.columns
-                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-                dff.reset_index(drop=True, inplace=True)
-        csv_string = dff.to_csv(index=False, encoding='utf-8')
-        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-        print("string={}".format(csv_string))
-        return [csv_string, False]
-    # change time
-    if triggered_id == 't_start' or triggered_id == 't_end' or triggered_id == 'time_range_slider':
-        return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
-
-
-@app.callback(Output('link-signals1', 'href'),
-              Output('link-signals1', 'hidden'),
-              Input('pick_selected', 'n_clicks'),
               Input('signal_1', 'value'),
               Input('signal_filter', 'value'),
               Input('smoothing_window', 'value'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
-              Input('time_range_slider', 'value'),
               State('loading_data', 'children'),
               State('t_start', 'min'),
               State('t_start', 'max'),
               State('t_start', 'step'))
-def export_signal(n_clicks, yy, signal_filter, smoothing, t_start, t_end, t_range, loading_data, t_min, t_max, t_step):
+def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
+                  t_start, t_end, loading_data, t_min, t_max, t_step):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
-    if triggered_id == 'pick_selected':
+    if triggered_id == 'pick_signals':
+        print("export signals")
         dff = pd.DataFrame()
         # set time range if None
         val1 = t_min if t_start is None else t_start
@@ -823,21 +805,25 @@ def export_signal(n_clicks, yy, signal_filter, smoothing, t_start, t_end, t_rang
                 cols = df.columns
                 dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
                 dff.reset_index(drop=True, inplace=True)
-                dff = dff[[cols[0]] + yy]
+                export_cols = cols
+                if all_check is None or all_check == []:
+                    dff = dff[[cols[0]] + yy]
+                    export_cols = yy
                 # request smoothing signals
                 if 'SM' in signal_filter:
-                    dff = prepare.set_smoothing_symm(dff, yy, smoothing, 1)
+                    dff = prepare.set_smoothing_symm(dff, export_cols, smoothing, 1)
                 if 'HW' in signal_filter:
-                    dff = prepare.set_correction_hann(dff, yy)
+                    dff = prepare.set_correction_hann(dff, export_cols)
+
         csv_string = dff.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        print("string={}".format(csv_string))
         return [csv_string, False]
-    # change something
+    # changing
     return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
 @app.callback(Output('spectrum_graph', 'figure'),
-              # Output('spectrum_graph1', 'figure'),
               Input('spectrum_1', 'value'),
               Input('spectrum_2', 'value'),
               Input('spectrum_filter', 'value'),
@@ -901,7 +887,6 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
 
 
 @app.callback(Output('schem_graph', 'figure'),
-              # Output('spectrum_graph1', 'figure'),
               Input('schematisation', 'value'),
               Input('schem_filter', 'value'),
               Input('schem_sigs', 'value'),
@@ -952,7 +937,6 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
 
 
 @app.callback(Output('table_map', 'figure'),
-              # Output('spectrum_graph1', 'figure'),
               Input('schematisation', 'value'),
               Input('schem_filter', 'value'),
               Input('schem_sigs', 'value'),
@@ -987,9 +971,9 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
             sig = schematisation.merge(sig, signal1, eps)
 
         sig = schematisation.pick_extremes(sig, signal1)
-        print(sig)
+        # print(sig)
         cycles = schematisation.pick_cycles_as_df(sig, signal1)
-        print(cycles)
+        # print(cycles)
 
         if code == 'MM':
             tbl = schematisation.correlation_table(cycles, 'Max', 'Min', m)
@@ -1000,17 +984,101 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
             x_title = 'Mean'
             y_title = 'Range'
 
-    print(tbl)
     fig = px.imshow(tbl, color_continuous_scale='GnBu')
-    layout = go.Layout(xaxis={'title': 'Time'},
-                       yaxis={'title': 'Input'},
-                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                       hovermode='closest',
-                       width=150 * graph_width, height=100 * graph_height)
-
     fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10),
                       xaxis={'title': x_title}, yaxis={'title': y_title})
     return fig
+
+
+@app.callback(Output('link-cycles', 'href'),
+              Output('link-cycles', 'hidden'),
+              Input('pick_cycles', 'n_clicks'),
+              Input('schematisation', 'value'),
+              Input('schem_filter', 'value'),
+              Input('schem_sigs', 'value'),
+              Input('smoothing_window_schem', 'value'),
+              Input('amplitude_width_input', 'value'),
+              State('t_start', 'value'),
+              State('t_end', 'value'),
+              State('t_start', 'step'),
+              State('loading_data', 'children'))
+def export_cycles(n_clicks, signal1, schem_filter, schem_sigs, k, eps, t_start, t_end, t_step, loading_data):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_cycles':
+        sig = pd.DataFrame()
+        if signal1:
+            df = pd.read_json(loading_data, orient='split')
+            cols = df.columns
+            val1 = df[cols[0]].iloc[0] if t_start is None else t_start
+            val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
+            dt = 0.0 if t_step is None else t_step / 2
+            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+            dff.reset_index(drop=True, inplace=True)
+            sig = dff[[cols[0], signal1]]
+            if schem_filter == 'SM':
+                sig = prepare.smoothing_symm(sig, signal1, k, 1)
+
+            if 'MG' in schem_sigs:
+                sig = schematisation.merge(sig, signal1, eps)
+
+            sig = schematisation.pick_extremes(sig, signal1)
+            sig = schematisation.pick_cycles_as_df(sig, signal1)
+        csv_string = sig.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    # change something
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
+@app.callback(Output('link-table', 'href'),
+              Output('link-table', 'hidden'),
+              Input('pick_table', 'n_clicks'),
+              Input('schematisation', 'value'),
+              Input('schem_filter', 'value'),
+              Input('schem_sigs', 'value'),
+              Input('smoothing_window_schem', 'value'),
+              Input('amplitude_width_input', 'value'),
+              Input('class_number', 'value'),
+              Input('corr_table_code', 'value'),
+              State('t_start', 'value'),
+              State('t_end', 'value'),
+              State('t_start', 'step'),
+              State('loading_data', 'children'))
+def export_table(n_clicks, signal1, schem_filter, schem_sigs, k, eps, m, code, t_start, t_end, t_step, loading_data):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_table':
+        dff = pd.DataFrame()
+        if signal1:
+            df = pd.read_json(loading_data, orient='split')
+            cols = df.columns
+            val1 = df[cols[0]].iloc[0] if t_start is None else t_start
+            val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
+            dt = 0.0 if t_step is None else t_step / 2
+            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+            dff.reset_index(drop=True, inplace=True)
+            sig = dff[[cols[0], signal1]]
+            if schem_filter == 'SM':
+                sig = prepare.smoothing_symm(sig, signal1, k, 1)
+
+            if 'MG' in schem_sigs:
+                sig = schematisation.merge(sig, signal1, eps)
+
+            sig = schematisation.pick_extremes(sig, signal1)
+            cycles = schematisation.pick_cycles_as_df(sig, signal1)
+            if code == 'MM':
+                dff = schematisation.correlation_table(cycles, 'Max', 'Min', m)
+            if code == 'MR':
+                dff = schematisation.correlation_table(cycles, 'Range', 'Mean', m)
+
+        csv_string = dff.to_csv(index=True, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    # change something
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
 @app.callback(Output('input_stats', 'children'),
@@ -1038,6 +1106,7 @@ def print_input_stats(signal1, t_start, t_end, t_step, loading_data):
 @app.callback(Output('amplitude_width', 'value'),
               Output('amplitude_width_input', 'value'),
               Output('amplitude_width_input', 'max'),
+              Output('schem_sigs', 'value'),
               Input('amplitude_width', 'value'),
               Input('amplitude_width_input', 'value'),
               Input('schematisation', 'value'),
@@ -1047,8 +1116,9 @@ def print_input_stats(signal1, t_start, t_end, t_step, loading_data):
               State('t_start', 'max'),
               State('t_start', 'step'),
               State('amplitude_width_input', 'max'),
-              State('loading_data', 'children'))
-def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, cur_max, loading_data):
+              State('loading_data', 'children'),
+              State('schem_sigs', 'value'))
+def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, cur_max, loading_data, current_sigs):
     # set time range if None
     val1 = t_min if t_start is None else t_start
     val2 = t_max if t_end is None else t_end
@@ -1072,21 +1142,26 @@ def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, 
             current_inpt = current_slider * current_range / 100.0
 
     if trigger_id == 'amplitude_width':
+        current_sigs += ['MG']
         if signal1:
             current_inpt = current_slider * current_range / 100.0
 
     if trigger_id == 'amplitude_width_input':
+        current_sigs += ['MG']
         if signal1:
             current_slider = current_inpt / current_range * 100
 
     print('sldr={}, inpt={}, range={}'.format(current_slider, current_inpt, current_range))
 
-    return [current_slider, current_inpt, current_range]
+    return [current_slider, current_inpt, current_range, current_sigs]
 
 
 @app.callback(Output('link-spectrum', 'href'),
               Output('link-spectrum', 'hidden'),
+              Input('all_spectrum', 'value'),
               Input('pick_spectrum', 'n_clicks'),
+              Input('spectrum_1', 'value'),
+              Input('spectrum_2', 'value'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
               Input('spectrum_filter', 'value'),
@@ -1095,7 +1170,8 @@ def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, 
               State('t_start', 'min'),
               State('t_start', 'max'),
               State('t_start', 'step'))
-def export_cross_spectrum(n_clicks, t_start, t_end, spectrum_filter, k, loading_data, t_min, t_max, t_step):
+def export_cross_spectrum(all_checked, n_clicks, spectrum_1, spectrum_2, t_start, t_end, spectrum_filter, k,
+                          loading_data, t_min, t_max, t_step):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
@@ -1114,7 +1190,10 @@ def export_cross_spectrum(n_clicks, t_start, t_end, spectrum_filter, k, loading_
                 cols = df.columns
                 dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
                 dff.reset_index(drop=True, inplace=True)
-                dfres = pipeline.calc_set_of_signals_cross_spectrum(dff, smoothing, win)
+                if all_checked is None or all_checked == []:
+                    dfres = pipeline.calc_signals_cross_spectrum(dff, spectrum_1, spectrum_2, smoothing, win)
+                else:
+                    dfres = pipeline.calc_set_of_signals_cross_spectrum(dff, smoothing, win)
         csv_string = dfres.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
         return [csv_string, False]
@@ -1177,7 +1256,10 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
 
 @app.callback(Output('link-coherence', 'href'),
               Output('link-coherence', 'hidden'),
+              Input('all_coherence', 'value'),
               Input('pick_coherence', 'n_clicks'),
+              Input('coherence_1', 'value'),
+              Input('coherence_2', 'value'),
               Input('t_start', 'value'),
               Input('t_end', 'value'),
               Input('coherence_filter', 'value'),
@@ -1187,9 +1269,11 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
               State('t_start', 'min'),
               State('t_start', 'max'),
               State('t_start', 'step'))
-def export_coherence(n_clicks, t_start, t_end, spectrum_filter, k, npseg, loading_data, t_min, t_max, t_step):
+def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t_end, spectrum_filter,
+                     k, npseg, loading_data, t_min, t_max, t_step):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    print(all_checked)
     # button click
     if triggered_id == 'pick_coherence':
         dfres = pd.DataFrame()
@@ -1199,14 +1283,16 @@ def export_coherence(n_clicks, t_start, t_end, spectrum_filter, k, npseg, loadin
         dt = 0.0 if t_step is None else t_step / 2
         smoothing = k if 'SM' in spectrum_filter else -1
         win = "hann" if 'HW' in spectrum_filter else "boxcar"
-        print("in export coh")
         if loading_data:
             df = pd.read_json(loading_data, orient='split')
             if not df.empty:
                 cols = df.columns
                 dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
                 dff.reset_index(drop=True, inplace=True)
-                dfres = pipeline.calc_set_of_signals_coherence(dff, smoothing, win, npseg)
+                if all_checked is None or all_checked == []:
+                    dfres = pipeline.calc_signals_coherence(dff, coherence_1, coherence_2, smoothing, win, npseg)
+                else:
+                    dfres = pipeline.calc_set_of_signals_coherence(dff, smoothing, win, npseg)
         csv_string = dfres.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
         return [csv_string, False]
