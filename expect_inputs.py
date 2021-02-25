@@ -7,7 +7,6 @@ import dash
 from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
-import dash_bootstrap_components as dbc
 import pandas as pd
 from staff import prepare
 from staff import analyse
@@ -21,6 +20,13 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 # app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
+
+
+def mark(i):
+    if i % 10 == 1:
+        return "{}%".format(i)
+    return ''
+
 
 app.layout = html.Div([
     html.H4("Spectrum Analysis", style={'text-align': 'center'}),
@@ -376,8 +382,11 @@ app.layout = html.Div([
             html.Div([
                 dcc.Slider(
                     id='amplitude_width',
-                    marks={str(i): str(i) for i in range(1, 101)},
-                    value=2),
+                    marks={str(i): mark(i) for i in range(1, 101)},
+                    min=1,
+                    max=100,
+                    value=2,
+                    step=None),
                 dcc.Input(
                     id='amplitude_width_input',
                     type='number'
@@ -449,14 +458,14 @@ app.layout = html.Div([
                         id='graph_width4',
                         min=1,
                         max=15,
-                        value=10,
+                        value=5,
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None),
                     dcc.Slider(
                         id='graph_height4',
                         min=1,
                         max=15,
-                        value=8,
+                        value=5,
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None)
                 ], style={'width': '40%'})
@@ -905,11 +914,11 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height, mode, eps,
+def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height, mode, eps,
                  t_start, t_end, t_step, loading_data):
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
-    if signal:
+    if signal1:
         df = pd.read_json(loading_data, orient='split')
         cols = df.columns
         val1 = df[cols[0]].iloc[0] if t_start is None else t_start
@@ -917,20 +926,20 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
         dt = 0.0 if t_step is None else t_step / 2
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        sig = dff[[cols[0], signal]]
+        sig = dff[[cols[0], signal1]]
         if schem_filter == 'SM':
-            sig = prepare.smoothing_symm(sig, signal, k, 1)
+            sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
         if 'SG' in schem_sigs:
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal], mode=gmode, name='input'))
+            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='input'))
 
         if 'MG' in schem_sigs:
-            sig = schematisation.merge(sig, signal, eps)
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal], mode=gmode, name='merge'))
+            sig = schematisation.merge(sig, signal1, eps)
+            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='merge'))
 
         if 'EX' in schem_sigs:
-            sig = schematisation.pick_extremes(sig, signal)
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal], mode=gmode, name='extremes'))
+            sig = schematisation.pick_extremes(sig, signal1)
+            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='extremes'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -957,10 +966,10 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height, eps, m, code,
+def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height, eps, m, code,
                  t_start, t_end, t_step, loading_data):
     tbl = pd.DataFrame()
-    if signal:
+    if signal1:
         df = pd.read_json(loading_data, orient='split')
         cols = df.columns
         val1 = df[cols[0]].iloc[0] if t_start is None else t_start
@@ -968,16 +977,16 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
         dt = 0.0 if t_step is None else t_step / 2
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        sig = dff[[cols[0], signal]]
+        sig = dff[[cols[0], signal1]]
         if schem_filter == 'SM':
-            sig = prepare.smoothing_symm(sig, signal, k, 1)
+            sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
         if 'MG' in schem_sigs:
-            sig = schematisation.merge(sig, signal, eps)
+            sig = schematisation.merge(sig, signal1, eps)
 
-        sig = schematisation.pick_extremes(sig, signal)
+        sig = schematisation.pick_extremes(sig, signal1)
         print(sig)
-        cycles = schematisation.pick_cycles_as_df(sig, signal)
+        cycles = schematisation.pick_cycles_as_df(sig, signal1)
         print(cycles)
 
         if code == 'MM':
@@ -986,8 +995,8 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
             tbl = schematisation.correlation_table(cycles, 'Range', 'Mean', m)
 
     print(tbl)
-
     fig = px.imshow(tbl, color_continuous_scale='GnBu')
+    fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10))
     return fig
 
 
@@ -997,9 +1006,9 @@ def update_graph(signal, schem_filter, schem_sigs, k, graph_width, graph_height,
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def print_input_stats(signal, t_start, t_end, t_step, loading_data):
-    str = ''
-    if signal:
+def print_input_stats(signal1, t_start, t_end, t_step, loading_data):
+    inp_str = ''
+    if signal1:
         df = pd.read_json(loading_data, orient='split')
         cols = df.columns
         val1 = df[cols[0]].iloc[0] if t_start is None else t_start
@@ -1007,10 +1016,10 @@ def print_input_stats(signal, t_start, t_end, t_step, loading_data):
         dt = 0.0 if t_step is None else t_step / 2
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        s_mean, s_variance, s_deviation, s_koef = schematisation.input_stats(dff, signal)
-        str = 'Mean value is {:.3e}, standard deviation is {:.3e}, ' \
-              'irregular coefficient is {:.3e}'.format(s_mean, s_deviation, s_koef)
-    return str
+        s_mean, s_variance, s_deviation, s_koef = schematisation.input_stats(dff, signal1)
+        inp_str = 'Mean value is {:.3e}, standard deviation is {:.3e}, ' \
+                  'irregular coefficient is {:.3e}'.format(s_mean, s_deviation, s_koef)
+    return inp_str
 
 
 @app.callback(Output('amplitude_width', 'value'),
@@ -1026,7 +1035,7 @@ def print_input_stats(signal, t_start, t_end, t_step, loading_data):
               State('t_start', 'step'),
               State('amplitude_width_input', 'max'),
               State('loading_data', 'children'))
-def amplitude_filter(sldr, inpt, signal, t_start, t_end, t_min, t_max, t_step, cur_max, loading_data):
+def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, cur_max, loading_data):
     # set time range if None
     val1 = t_min if t_start is None else t_start
     val2 = t_max if t_end is None else t_end
@@ -1041,20 +1050,20 @@ def amplitude_filter(sldr, inpt, signal, t_start, t_end, t_min, t_max, t_step, c
     current_range = cur_max
 
     if trigger_id == 'schematisation':
-        if signal:
+        if signal1:
             df = pd.read_json(loading_data, orient='split')
             cols = df.columns
             dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
             dff.reset_index(drop=True, inplace=True)
-            current_range = dff[signal].max() - dff[signal].min()
+            current_range = dff[signal1].max() - dff[signal1].min()
             current_inpt = current_slider * current_range / 100.0
 
     if trigger_id == 'amplitude_width':
-        if signal:
+        if signal1:
             current_inpt = current_slider * current_range / 100.0
 
     if trigger_id == 'amplitude_width_input':
-        if signal:
+        if signal1:
             current_slider = current_inpt / current_range * 100
 
     print('sldr={}, inpt={}, range={}'.format(current_slider, current_inpt, current_range))
