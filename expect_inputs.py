@@ -431,6 +431,7 @@ app.layout = html.Div([
                 ], style={'width': '40%'})
             ]),
 
+            html.Hr(),
             html.Label("Correlation Table"),
             dcc.RadioItems(
                 id='corr_table_code',
@@ -441,8 +442,20 @@ app.layout = html.Div([
                 value='MM',
                 labelStyle={'display': 'inline-block'}
             ),
-
-            html.Label("Class count"),
+            html.Label("Classes range"),
+            html.Div([
+                dcc.Input(
+                    id='class_min_input',
+                    type='number',
+                    step=0.01
+                ),
+                dcc.Input(
+                    id='class_max_input',
+                    type='number',
+                    step=0.01
+                ),
+            ], style={'columns': 2}),
+            html.Label("Classes count"),
             html.Div([
                 dcc.Slider(
                     id='class_number',
@@ -944,13 +957,15 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
               Input('graph_width4', 'value'),
               Input('graph_height4', 'value'),
               Input('amplitude_width_input', 'value'),
+              Input('class_min_input', 'value'),
+              Input('class_max_input', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
               State('t_start', 'value'),
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height, eps, m, code,
+def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height, eps, class_min, class_max, m, code,
                  t_start, t_end, t_step, loading_data):
     tbl = pd.DataFrame()
     x_title = ''
@@ -976,11 +991,11 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
         # print(cycles)
 
         if code == 'MM':
-            tbl = schematisation.correlation_table(cycles, 'Max', 'Min', m)
+            tbl = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
             x_title = 'Min'
             y_title = 'Max'
         if code == 'MR':
-            tbl = schematisation.correlation_table(cycles, 'Range', 'Mean', m)
+            tbl = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
             x_title = 'Mean'
             y_title = 'Range'
 
@@ -1041,13 +1056,16 @@ def export_cycles(n_clicks, signal1, schem_filter, schem_sigs, k, eps, t_start, 
               Input('schem_sigs', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('amplitude_width_input', 'value'),
+              Input('class_min_input', 'value'),
+              Input('class_max_input', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
               State('t_start', 'value'),
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def export_table(n_clicks, signal1, schem_filter, schem_sigs, k, eps, m, code, t_start, t_end, t_step, loading_data):
+def export_table(n_clicks, signal1, schem_filter, schem_sigs, k, eps, class_min, class_max, m, code,
+                 t_start, t_end, t_step, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
@@ -1071,9 +1089,9 @@ def export_table(n_clicks, signal1, schem_filter, schem_sigs, k, eps, m, code, t
             sig = schematisation.pick_extremes(sig, signal1)
             cycles = schematisation.pick_cycles_as_df(sig, signal1)
             if code == 'MM':
-                dff = schematisation.correlation_table(cycles, 'Max', 'Min', m)
+                dff = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
             if code == 'MR':
-                dff = schematisation.correlation_table(cycles, 'Range', 'Mean', m)
+                dff = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
 
         csv_string = dff.to_csv(index=True, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)

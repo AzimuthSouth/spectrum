@@ -140,7 +140,7 @@ def input_stats(df, name):
     input statistic for signal
     :param df: dataFrame
     :param name: column name
-    :return: mean, variance, standart deviation, reg.koefficient
+    :return: mean, variance, standard deviation, reg.coefficient
     """
     data = df[name].to_numpy()
     mn = numpy.mean(data)
@@ -170,7 +170,7 @@ def pick_extremes(df, name):
     return dff
 
 
-# schematization of data series by extremes method
+# schematisation of data series by extremes method
 def extremes_method(data, ind, m):
     ext = pick_max_above0_min_below0(data, ind)
     return repetition_rate(ext[:, ind], count=m)
@@ -243,19 +243,21 @@ def repetition_rate(data, width=None, count=None):
 
 
 # calc correlation table
-def correlation_table(cycles, name1, name2, count=10):
+def correlation_table(cycles, name1, name2, mmin_set=None, mmax_set=None, count=10):
     """
     Calc correlation table min-max or mean-range for loading input
     :param cycles: dataFrame with extracted half-cycles
     :param count:  class numbers
     :param name1: variable 1 (min or mean)
     :param name2: variable 2 (max or range)
+    :param mmin_set: classes minimum
+    :param mmax_set: classes maximum
     :return: dataFrame with correlation table
     """
     rows, _ = cycles.shape
     # set classes width
-    mmin = min(cycles[name1].min(), cycles[name2].min())
-    mmax = max(cycles[name1].max(), cycles[name2].max())
+    mmin = min(cycles[name1].min(), cycles[name2].min()) if mmin_set is None else mmin_set
+    mmax = max(cycles[name1].max(), cycles[name2].max()) if mmax_set is None else mmax_set
     w = (mmax - mmin) / (count - 1)
 
     # set classes names
@@ -267,8 +269,8 @@ def correlation_table(cycles, name1, name2, count=10):
         r = mmin + w * i
         # name_rows.append("{:.3f}-{:.3f}".format(r1, r2))
         # name_cols.append("{:.3f}-{:.3f}".format(r1, r2))
-        name_rows.append("{:.3f}".format(r))
-        name_cols.append("{:.3f}".format(r))
+        name_rows.append("{:.3f}".format(r2))
+        name_cols.append("{:.3f}".format(r2))
     res = numpy.zeros((count, count))
     if w == 0:
         res += cycles.iloc[0]['Count']
@@ -278,10 +280,16 @@ def correlation_table(cycles, name1, name2, count=10):
         if w > 0:
             ind1 = int(math.trunc((cycles.iloc[i][name1] - mmin) / w))
             ind2 = int(math.trunc((cycles.iloc[i][name2] - mmin) / w))
-        res[ind1][ind2] += cycles.iloc[i]['Count']
+            # print("x={}, y={}, ind1={}, ind2={}".format(cycles.iloc[i][name1], cycles.iloc[i][name2], ind1, ind2))
+        if is_between(ind1, 0, count) and is_between(ind2, 0, count):
+            res[ind1][ind2] += cycles.iloc[i]['Count']
 
     df = pandas.DataFrame(res, columns=name_cols, index=name_rows)
     return df
+
+
+def is_between(x, mn, mx):
+    return (x >= mn) and (x <= mx)
 
 
 # calc range and mean values for cycle
