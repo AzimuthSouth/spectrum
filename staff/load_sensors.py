@@ -13,31 +13,41 @@ print(df)
 dt = 0.02
 # time = df[col_names[0]].to_numpy()
 time = np.arange(0, dt * r, dt)
+dff = pd.DataFrame()
+dff['time'] = time
+dff['input'] = df['input']
+dff.to_csv('input.txt', index=False)
+
 delta = np.mean(abs(time[:-1] - time[1:]))
 s1 = df[col_names[0]].to_numpy()
+s1_smooth = prepare.smoothing_symm(df, 'input', 100, 1)
+print(s1_smooth)
+s1_sm_cent = prepare.smoothing_delta_symm(df, 'input', 100, 1)
 d = (max(s1) - min(s1)) * 0.005
-s1[len(s1) - 1] += 2 * d
-ds1 = signal.detrend(s1, bp=[100, 150, 195, 390, 585])
-#  bp=range(1, len(s1), int(len(s1) / 100))
-dr = s1 - ds1
-d = (max(s1) - min(s1)) * 0.005
-print(d)
-s1m = schematisation.merge(list(zip(time, s1)), 1, d)
-ext = schematisation.pick_extremes(s1m, 1)
 
-
+# compare result_smoothing and r1
 df1 = pd.read_csv('data_res.txt', delim_whitespace=True)
 col_names1 = df1.columns
 r1 = df1[col_names1[0]].to_numpy()[:682]
 r2 = df1[col_names1[1]].to_numpy()
-print(r1[0])
+print(max(r1 - s1_smooth['input'].to_numpy()))
+print(min(r1 - s1_smooth['input'].to_numpy()))
+
+df2 = pd.read_csv('spectr_res.txt')
+col_names2 = df2.columns
+smooth = df2[col_names2[2]]
+
+plt.plot(range(len(r1)), s1_smooth, '+', label='input')
+plt.plot(range(len(r1)), r1, label='r1')
+#plt.plot(time, s1, label='res')
+
 
 
 #plt.plot(time, r2, label='res')
 #plt.plot(time, ds1, label='detrend')
-plt.plot(s1m[:, 0], s1m[:, 1], '+', label='merge')
-plt.plot(ext[:, 0], ext[:, 1], label='ext')
-plt.plot(time, s1, label='res')
+# plt.plot(s1m[:, 0], s1m[:, 1], '+', label='merge')
+# plt.plot(ext[:, 0], ext[:, 1], label='ext')
+# plt.plot(time, s1, label='res')
 
 
 # plt.plot(time, r1[:len(time)], label='r1')
@@ -58,6 +68,16 @@ plt.show()
 
 
 '''
+ds1 = signal.detrend(s1, bp=[100, 150, 195, 390, 585])
+#  bp=range(1, len(s1), int(len(s1) / 100))
+dr = s1 - ds1
+d = (max(s1) - min(s1)) * 0.005
+print(d)
+s1m = schematisation.merge(list(zip(time, s1)), 1, d)
+ext = schematisation.pick_extremes(s1m, 1)
+
+
+
 df = pd.DataFrame(list(zip(ff, abs(fs1))),
                       columns=['freq', 'fft'])
 df.to_csv('data_res.txt', index=False)

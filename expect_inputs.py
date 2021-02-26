@@ -573,8 +573,9 @@ def upload_file(contents, filename):
         time_range = f"Time from {trp[0]} to {trp[1]}, mean time step is {trp[2]:.3e}, " \
                      f"time step deviation is {trp[3]:.3e}"
     options = get_options(df.columns)
+
     return [df.to_json(date_format='iso', orient='split'),
-            options, filename, time_range,
+            options[1:], filename, time_range,
             options[1:], options[1:],
             options[1:], options[1:],
             options[1:],

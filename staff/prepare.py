@@ -15,13 +15,39 @@ def smoothing_symm(data, name, k, step):
     # 1st corrected point
     ind1 = int(numpy.trunc(k / 2))
     # select rows from df
-    index = range(ind1, len(x) - ind1, step)
+    index = range(ind1, len(x) - ind1 + 1, step)
     dff = data.iloc[index]
     dff.reset_index(drop=True, inplace=True)
     # smooth column
-    for i in range(ind1, len(x) - ind1, step):
-        xi = numpy.mean(x[i: k + i])
+    for i in range(ind1, len(x) - ind1 + 1, step):
+        xi = numpy.mean(x[i - ind1: k + i - ind1])
         x_smooth.append(xi)
+    df1 = dff.copy()
+    df1[name] = x_smooth
+    return df1
+
+
+def smoothing_delta_symm(data, name, k, step):
+    """
+    Function for smoothing and thinning input signal
+    :param data: dataframe
+    :param name: col_name for smoothing
+    :param k: window width
+    :param step: offset
+    :return: dataFrame
+    """
+    x = data[name].to_numpy()
+    x_smooth = []
+    # 1st corrected point
+    ind1 = int(numpy.trunc(k / 2))
+    # select rows from df
+    index = range(ind1, len(x) - ind1 + 1, step)
+    dff = data.iloc[index]
+    dff.reset_index(drop=True, inplace=True)
+    # smooth column
+    for i in range(ind1, len(x) - ind1 + 1, step):
+        xi = numpy.mean(x[i - ind1: k + i - ind1])
+        x_smooth.append(x[i] - xi)
     df1 = dff.copy()
     df1[name] = x_smooth
     return df1
