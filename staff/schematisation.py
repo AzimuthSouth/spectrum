@@ -43,6 +43,60 @@ def merge(df, name, d):
     return dff
 
 
+def merge_extremes(df, name, d):
+    """
+
+    :param df: dataFrame
+    :param name: merge signal
+    :param d: merge width
+    :return: dataFrame
+    """
+    # x - input, d - class width
+    col_names = df.columns
+    x = list(zip(df[col_names[0]].to_numpy(), df[name].to_numpy()))
+
+    # cut constant part at the beginning
+    ind = 1
+    res = [x[0]]
+    i = 1
+    while abs(res[0][ind] - x[i][ind]) <= d:
+        i = i + 1
+    res.append(x[i])
+    curr_is_min = is_min(x[i - 1: i + 2])
+
+    for j in range(i + 1, len(x)):
+        change_brunch = True
+        last = res[-1]
+        if curr_is_min and (x[j][ind] < last[ind]):
+            res = res[:-1]
+            res.append(x[j])
+            change_brunch = False
+        if (not curr_is_min) and (x[j][ind] > last[ind]):
+            res = res[:-1]
+            res.append(x[j])
+            change_brunch = False
+        if change_brunch:
+            if abs(res[-1][ind] - x[j][ind]) > d:
+                res.append(x[j])
+                curr_is_min = not curr_is_min
+
+    dff = pandas.DataFrame(res, columns=col_names)
+    return dff
+
+
+def get_merged_extremes(df, name, d):
+    remove_steps = merge(df, name, 0)
+    all_extremes = pick_extremes(remove_steps, name)
+    filt_extremes = merge_extremes(all_extremes, name, d)
+    return filt_extremes
+
+
+def get_extremes(df, name):
+    remove_steps = merge(df, name, 0)
+    all_extremes = pick_extremes(remove_steps, name)
+    return all_extremes
+
+
 def average_array(buf):
     res = numpy.zeros(len(buf[0]))
     for i in range(len(buf)):

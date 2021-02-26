@@ -56,7 +56,7 @@ app.layout = html.Div([
             dcc.Checklist(
                 id='signal_filter',
                 options=[
-                    {'label': 'smoothing and centering', 'value': 'SM'},
+                    {'label': 'smoothing', 'value': 'SM'},
                     {'label': 'hann-weighting', 'value': 'HW'}
                 ],
                 value=['SM', 'HW'],
@@ -159,7 +159,7 @@ app.layout = html.Div([
             dcc.Checklist(
                 id='spectrum_filter',
                 options=[
-                    {'label': 'smoothing and centering', 'value': 'SM'},
+                    {'label': 'smoothing', 'value': 'SM'},
                     {'label': 'hann-weighting', 'value': 'HW'}
                 ],
                 value=['SM', 'HW'],
@@ -242,7 +242,7 @@ app.layout = html.Div([
             dcc.Checklist(
                 id='coherence_filter',
                 options=[
-                    {'label': 'smoothing and centering', 'value': 'SM'},
+                    {'label': 'smoothing', 'value': 'SM'},
                     {'label': 'hann-weighting', 'value': 'HW'}
                 ],
                 value=['SM', 'HW'],
@@ -342,14 +342,14 @@ app.layout = html.Div([
                     options=[
                         {'label': 'merged', 'value': 'MG'},
                     ],
-                    value=['MG', 'EX'],
+                    value=['MG'],
                     labelStyle={'display': 'inline-block'}
                     ),
                 dcc.RadioItems(
                     id='schem_filter',
                     options=[
                         {'label': 'input signal', 'value': 'RW'},
-                        {'label': 'smoothing and centering', 'value': 'SM'},
+                        {'label': 'smoothing', 'value': 'SM'},
                     ],
                     value='SM',
                     labelStyle={'display': 'inline-block'}
@@ -938,21 +938,23 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         sig = dff[[cols[0], signal1]]
-        if schem_filter == 'SM':
+        if schem_filter == 'SM' and not (k is None) :
             sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
         if 'SG' in schem_sigs:
             data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='input'))
 
-        if 'MG' in schem_sigs:
-            sig = schematisation.merge(sig, signal1, eps)
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='merge'))
-
         if 'EX' in schem_sigs:
-            if 'MG' in is_merged:
-                sig = schematisation.merge(sig, signal1, eps)
-            sig = schematisation.pick_extremes(sig, signal1)
+            # all extremes
+            sig = schematisation.get_extremes(sig, signal1)
             data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='extremes'))
+
+        if 'MG' in is_merged and not (eps is None):
+            sig = schematisation.get_merged_extremes(sig, signal1, eps)
+            if 'MG' in schem_sigs and not (eps is None):
+                data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='merge'))
+
+
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -962,6 +964,17 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
 
     fig = go.Figure(data=data, layout=layout)
     return fig
+
+@app.callback(Output('schem_sigs', 'value'),
+              Input('schem_sigs_prepare', 'value'),
+              State('schem_sigs', 'value'))
+def not_draw_merge(is_merged, sigs):
+    current_sigs = sigs
+    if 'MG' in is_merged:
+        current_sigs.append('MG')
+    else:
+        current_sigs = [x for x in sigs if x != 'MG']
+    return current_sigs
 
 
 @app.callback(Output('table_map', 'figure'),
@@ -994,25 +1007,27 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         sig = dff[[cols[0], signal1]]
-        if schem_filter == 'SM':
+        if schem_filter == 'SM' and not (k is None):
             sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
-        if 'MG' in is_merged:
-            sig = schematisation.merge(sig, signal1, eps)
-
-        sig = schematisation.pick_extremes(sig, signal1)
+        if 'MG' in is_merged and not (eps is None):
+            sig = schematisation.get_merged_extremes(sig, signal1, eps)
+        else:
+            sig = schematisation.get_extremes(sig, signal1)
         # print(sig)
         cycles = schematisation.pick_cycles_as_df(sig, signal1)
         # print(cycles)
-
-        if code == 'MM':
-            tbl = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
-            x_title = 'Min'
-            y_title = 'Max'
-        if code == 'MR':
-            tbl = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
-            x_title = 'Mean'
-            y_title = 'Range'
+        if m is None:
+            pass
+        else:
+            if code == 'MM':
+                tbl = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
+                x_title = 'Min'
+                y_title = 'Max'
+            if code == 'MR':
+                tbl = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
+                x_title = 'Mean'
+                y_title = 'Range'
 
     fig = px.imshow(tbl, color_continuous_scale='GnBu')
     fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10),
@@ -1026,14 +1041,14 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
               Input('pick_cycles', 'n_clicks'),
               Input('schematisation', 'value'),
               Input('schem_filter', 'value'),
-              Input('schem_sigs', 'value'),
+              Input('schem_sigs_prepare', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('amplitude_width_input', 'value'),
               State('t_start', 'value'),
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def export_cycles(n_clicks, signal1, schem_filter, schem_sigs, k, eps, t_start, t_end, t_step, loading_data):
+def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t_end, t_step, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
@@ -1051,10 +1066,10 @@ def export_cycles(n_clicks, signal1, schem_filter, schem_sigs, k, eps, t_start, 
             if schem_filter == 'SM':
                 sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
-            if 'MG' in schem_sigs:
-                sig = schematisation.merge(sig, signal1, eps)
-
-            sig = schematisation.pick_extremes(sig, signal1)
+            if 'MG' in is_merged and not (eps is None):
+                sig = schematisation.get_merged_extremes(sig, signal1, eps)
+            else:
+                sig = schematisation.get_extremes(sig, signal1)
             sig = schematisation.pick_cycles_as_df(sig, signal1)
         csv_string = sig.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
@@ -1068,7 +1083,7 @@ def export_cycles(n_clicks, signal1, schem_filter, schem_sigs, k, eps, t_start, 
               Input('pick_table', 'n_clicks'),
               Input('schematisation', 'value'),
               Input('schem_filter', 'value'),
-              Input('schem_sigs', 'value'),
+              Input('schem_sigs_prepare', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('amplitude_width_input', 'value'),
               Input('class_min_input', 'value'),
@@ -1079,7 +1094,7 @@ def export_cycles(n_clicks, signal1, schem_filter, schem_sigs, k, eps, t_start, 
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def export_table(n_clicks, signal1, schem_filter, schem_sigs, k, eps, class_min, class_max, m, code,
+def export_table(n_clicks, signal1, schem_filter, is_merged, k, eps, class_min, class_max, m, code,
                  t_start, t_end, t_step, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
@@ -1098,15 +1113,18 @@ def export_table(n_clicks, signal1, schem_filter, schem_sigs, k, eps, class_min,
             if schem_filter == 'SM':
                 sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
-            if 'MG' in schem_sigs:
-                sig = schematisation.merge(sig, signal1, eps)
-
-            sig = schematisation.pick_extremes(sig, signal1)
+            if 'MG' in is_merged and not (eps is None):
+                sig = schematisation.get_merged_extremes(sig, signal1, eps)
+            else:
+                sig = schematisation.get_extremes(sig, signal1)
             cycles = schematisation.pick_cycles_as_df(sig, signal1)
-            if code == 'MM':
-                dff = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
-            if code == 'MR':
-                dff = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
+            if m is None:
+                pass
+            else:
+                if code == 'MM':
+                    dff = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
+                if code == 'MR':
+                    dff = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
 
         csv_string = dff.to_csv(index=True, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
@@ -1140,7 +1158,7 @@ def print_input_stats(signal1, t_start, t_end, t_step, loading_data):
 @app.callback(Output('amplitude_width', 'value'),
               Output('amplitude_width_input', 'value'),
               Output('amplitude_width_input', 'max'),
-              Output('schem_sigs', 'value'),
+              Output('schem_sigs_prepare', 'value'),
               Input('amplitude_width', 'value'),
               Input('amplitude_width_input', 'value'),
               Input('schematisation', 'value'),
@@ -1167,7 +1185,7 @@ def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, 
     current_range = cur_max
 
     if trigger_id == 'schematisation':
-        if signal1:
+        if signal1 and sldr:
             df = pd.read_json(loading_data, orient='split')
             cols = df.columns
             dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
@@ -1175,17 +1193,17 @@ def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, 
             current_range = dff[signal1].max() - dff[signal1].min()
             current_inpt = current_slider * current_range / 100.0
 
-    if trigger_id == 'amplitude_width':
+    if trigger_id == 'amplitude_width' and sldr:
         current_sigs += ['MG']
         if signal1:
             current_inpt = current_slider * current_range / 100.0
 
-    if trigger_id == 'amplitude_width_input':
+    if trigger_id == 'amplitude_width_input' and inpt:
         current_sigs += ['MG']
         if signal1:
             current_slider = current_inpt / current_range * 100
 
-    print('sldr={}, inpt={}, range={}'.format(current_slider, current_inpt, current_range))
+    # print('sldr={}, inpt={}, range={}'.format(current_slider, current_inpt, current_range))
 
     return [current_slider, current_inpt, current_range, current_sigs]
 

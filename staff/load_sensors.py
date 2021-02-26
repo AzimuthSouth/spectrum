@@ -9,14 +9,30 @@ import schematisation
 df = pd.read_csv('data.txt')
 col_names = df.columns
 r, c = df.shape
-print(df)
+
 dt = 0.02
 time = np.arange(0, dt * r, dt)
 dff = pd.DataFrame()
 dff['time'] = time
 dff['input'] = df['input']
 dff.to_csv('input.txt', index=False)
+smooth = prepare.smoothing_symm(dff, 'input', 3, 1)
+remove_steps = schematisation.merge(smooth, 'input', 0)
+all_extremes = schematisation.pick_extremes(remove_steps, 'input')
+print(all_extremes.iloc[:20])
+filt_extremes = schematisation.merge_extremes(all_extremes, 'input', 10)
 
+# plt.plot(dff['time'], dff['input'], label='raw')
+plt.plot(smooth['time'], smooth['input'], label='smooth')
+plt.plot(remove_steps['time'], remove_steps['input'], label='-steps')
+plt.plot(all_extremes['time'], all_extremes['input'], label='all_extremes')
+plt.plot(filt_extremes['time'], filt_extremes['input'], label='filter_extremes')
+plt.xlabel('time [s]')
+plt.ylabel('input [-]')
+plt.legend(loc='best')
+plt.show()
+
+'''
 delta = np.mean(abs(time[:-1] - time[1:]))
 s1 = df[col_names[0]].to_numpy()
 s1_smooth = prepare.smoothing_symm(df, 'input', 100, 1)
@@ -32,7 +48,7 @@ r2 = df1[col_names1[1]].to_numpy()
 plt.plot(range(len(r1)), s1_smooth, '+', label='input')
 plt.plot(range(len(r1)), r1, label='r1')
 #plt.plot(time, s1, label='res')
-
+'''
 
 
 #plt.plot(time, r2, label='res')
@@ -47,10 +63,6 @@ plt.plot(range(len(r1)), r1, label='r1')
 #plt.plot(time, s1 - r2, label='sig-r2')
 # plt.plot(time[:len(r1)], r1, label='r1')
 
-plt.xlabel('time [s]')
-plt.ylabel('input [-]')
-plt.legend(loc='best')
-plt.show()
 
 
 
