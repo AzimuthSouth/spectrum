@@ -258,7 +258,7 @@ def correlation_table(cycles, name1, name2, mmin_set=None, mmax_set=None, count=
     # set classes width
     mmin = min(cycles[name1].min(), cycles[name2].min()) if mmin_set is None else mmin_set
     mmax = max(cycles[name1].max(), cycles[name2].max()) if mmax_set is None else mmax_set
-    w = (mmax - mmin) / (count - 1)
+    w = (mmax - mmin) / count
 
     # set classes names
     name_rows = []
@@ -280,6 +280,10 @@ def correlation_table(cycles, name1, name2, mmin_set=None, mmax_set=None, count=
         if w > 0:
             ind1 = int(math.trunc((cycles.iloc[i][name1] - mmin) / w))
             ind2 = int(math.trunc((cycles.iloc[i][name2] - mmin) / w))
+            if ind1 == count:
+                ind1 -= 1
+            if ind2 == count:
+                ind2 -= 1
             # print("x={}, y={}, ind1={}, ind2={}".format(cycles.iloc[i][name1], cycles.iloc[i][name2], ind1, ind2))
         if is_between(ind1, 0, count) and is_between(ind2, 0, count):
             res[ind1][ind2] += cycles.iloc[i]['Count']

@@ -11,7 +11,6 @@ col_names = df.columns
 r, c = df.shape
 print(df)
 dt = 0.02
-# time = df[col_names[0]].to_numpy()
 time = np.arange(0, dt * r, dt)
 dff = pd.DataFrame()
 dff['time'] = time
@@ -21,7 +20,6 @@ dff.to_csv('input.txt', index=False)
 delta = np.mean(abs(time[:-1] - time[1:]))
 s1 = df[col_names[0]].to_numpy()
 s1_smooth = prepare.smoothing_symm(df, 'input', 100, 1)
-print(s1_smooth)
 s1_sm_cent = prepare.smoothing_delta_symm(df, 'input', 100, 1)
 d = (max(s1) - min(s1)) * 0.005
 
@@ -30,12 +28,6 @@ df1 = pd.read_csv('data_res.txt', delim_whitespace=True)
 col_names1 = df1.columns
 r1 = df1[col_names1[0]].to_numpy()[:682]
 r2 = df1[col_names1[1]].to_numpy()
-print(max(r1 - s1_smooth['input'].to_numpy()))
-print(min(r1 - s1_smooth['input'].to_numpy()))
-
-df2 = pd.read_csv('spectr_res.txt')
-col_names2 = df2.columns
-smooth = df2[col_names2[2]]
 
 plt.plot(range(len(r1)), s1_smooth, '+', label='input')
 plt.plot(range(len(r1)), r1, label='r1')
