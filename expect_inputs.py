@@ -967,7 +967,7 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
 @app.callback(Output('table_map', 'figure'),
               Input('schematisation', 'value'),
               Input('schem_filter', 'value'),
-              Input('schem_sigs', 'value'),
+              Input('schem_sigs_prepare', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('graph_width4', 'value'),
               Input('graph_height4', 'value'),
@@ -980,7 +980,7 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height, eps, class_min, class_max, m, code,
+def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height, eps, class_min, class_max, m, code,
                  t_start, t_end, t_step, loading_data):
     tbl = pd.DataFrame()
     x_title = ''
@@ -997,7 +997,7 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
         if schem_filter == 'SM':
             sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
-        if 'MG' in schem_sigs:
+        if 'MG' in is_merged:
             sig = schematisation.merge(sig, signal1, eps)
 
         sig = schematisation.pick_extremes(sig, signal1)
@@ -1017,7 +1017,7 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
     fig = px.imshow(tbl, color_continuous_scale='GnBu')
     fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10),
                       xaxis={'title': x_title}, yaxis={'title': y_title})
-    fig.update_xaxes(side="top")
+    fig.update_xaxes(side="top", tickangle=0)
     return fig
 
 

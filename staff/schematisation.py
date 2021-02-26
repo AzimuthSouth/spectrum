@@ -264,13 +264,13 @@ def correlation_table(cycles, name1, name2, mmin_set=None, mmax_set=None, count=
     name_rows = []
     name_cols = []
     for i in range(count):
-        r1 = mmin + w * i - w / 2
-        r2 = mmin + w * i + w / 2
+        r1 = mmin + w * i
+        r2 = mmin + w * (i + 1)
         r = mmin + w * i
-        # name_rows.append("{:.3f}-{:.3f}".format(r1, r2))
-        # name_cols.append("{:.3f}-{:.3f}".format(r1, r2))
-        name_rows.append("{:.3f}".format(r2))
-        name_cols.append("{:.3f}".format(r2))
+        name_rows.append("{:.2f}-{:.2f}:     {}".format(r1, r2, i + 1))
+        name_cols.append("{}".format(i + 1))
+        # name_rows.append("{:.2f}".format(r2))
+        # name_cols.append("{:.2f}".format(r2))
     res = numpy.zeros((count, count))
     if w == 0:
         res += cycles.iloc[0]['Count']
