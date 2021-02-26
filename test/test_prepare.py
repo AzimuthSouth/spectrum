@@ -34,36 +34,19 @@ class TestPrepareData(unittest.TestCase):
         eps = numpy.sum((res - ans).to_numpy() ** 2)
         self.assertEqual(eps < 1.0e-6, True)
 
-    def test_hann(self):
-        self.setdata()
-        ans = [-0.0, 0.08385482543440552, 0.5133974031852788, 0.8245441227458384,
-               -1.2824240576553159, 0.026483700484517467, -4.925006852239974, 1.4151936420349525,
-               7.4860076895920615, -2.825399412791489, -5.492193061381769, -15.332500154851896,
-               4.185994537446609, 7.795403385822147, -6.173133494066359, 29.30308984316876,
-               6.81102421335977, -30.94580151445351, -31.281293869653997, 10.866431006010258,
-               12.686297155559567, -2.034100024415491, 0.5181620325824342, 5.921869622829765,
-               19.509302124589883, -13.02879356035574, 0.9312880353933057, 40.29403923139346,
-               0.04471323385800682, -12.790218032186699, -48.8456277021665, 2.2783909479332443,
-               18.568614391722967, 15.037822602410554, -21.43074942577372, 26.872948077778602,
-               -8.293973602444284, 15.645307375239335, -7.359071458449661, -5.275305878886732,
-               -8.759896472712153, -1.499046021895888, 8.20803736865746, 6.3217128759650585,
-               -2.3934764308597005, -0.2648250268085467, -0.5605436633797664, 0.8457435388225538,
-               0.0511013892784202, 0.0]
-        eps = []
-        for i in range(len(res)):
-            eps.append(res[i] - ans[i])
-        self.assertEqual(numpy.linalg.norm(eps) < 1.0e-6, True)
+    def test_hann_coefficient_zero(self):
+        self.assertEqual(prepare.hann_coefficient(0, 0) == -1)
 
-    def draw_weight(self):
-        x = numpy.arange(100)
-        y = numpy.ndarray((4, len(x)))
-        for i in range(len(x)):
-            y[0][i] = prepare.hann_coefficient(i, 100)
-            y[1][i] = prepare.triangle_coefficient(i, 100)
-            y[2][i] = prepare.hemming_coefficient(i, 100)
-            y[3][i] = prepare.natoll_coefficient(i, 100, 0.8, 0.1, 0.1)
-        p = draw.Painter()
-        p.draw(x, y, ["hann_koef", "treug_coef", "hemming", "natoll"], ["time", "data"])
+    def test_hann_coefficient(self):
+        r = [0, 50, 100]
+        n = [100] * 3
+        res = [prepare.hann_coefficient(r[i], n[i]) for i in range(len(r))]
+        ans = [0.0, 0.5, 0.0]
+        eps = numpy.sum((res - ans).to_numpy() ** 2)
+        self.assertEqual(eps < 1.0e-6, True)
+
+    def test_hann(self):
+        self.assertEqual(True, True)
 
 
 if __name__ == '__main__':

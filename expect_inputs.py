@@ -336,22 +336,33 @@ app.layout = html.Div([
                 )
             ], style={'display': 'inline-block', 'width': '20%'}),
 
-            dcc.RadioItems(
-                id='schem_filter',
-                options=[
-                    {'label': 'input signal', 'value': 'RW'},
-                    {'label': 'smoothing and centering', 'value': 'SM'},
-                ],
-                value='SM',
-                labelStyle={'display': 'inline-block'}
-            ),
+            html.Div([
+                dcc.Checklist(
+                    id='schem_sigs_prepare',
+                    options=[
+                        {'label': 'merged', 'value': 'MG'},
+                    ],
+                    value=['MG', 'EX'],
+                    labelStyle={'display': 'inline-block'}
+                    ),
+                dcc.RadioItems(
+                    id='schem_filter',
+                    options=[
+                        {'label': 'input signal', 'value': 'RW'},
+                        {'label': 'smoothing and centering', 'value': 'SM'},
+                    ],
+                    value='SM',
+                    labelStyle={'display': 'inline-block'}
+                ),
+            ]),
+
 
             dcc.Checklist(
                 id='schem_sigs',
                 options=[
-                    {'label': 'signal', 'value': 'SG'},
-                    {'label': 'merged', 'value': 'MG'},
-                    {'label': 'extremes', 'value': 'EX'}
+                    {'label': 'show signal', 'value': 'SG'},
+                    {'label': 'show merged', 'value': 'MG'},
+                    {'label': 'show extremes', 'value': 'EX'}
                 ],
                 value=['MG', 'EX'],
                 labelStyle={'display': 'inline-block'}
@@ -903,6 +914,7 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
               Input('schematisation', 'value'),
               Input('schem_filter', 'value'),
               Input('schem_sigs', 'value'),
+              Input('schem_sigs_prepare', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('graph_width3', 'value'),
               Input('graph_height3', 'value'),
@@ -912,7 +924,7 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height, mode, eps,
+def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, graph_height, mode, eps,
                  t_start, t_end, t_step, loading_data):
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
@@ -936,6 +948,8 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
             data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='merge'))
 
         if 'EX' in schem_sigs:
+            if 'MG' in is_merged:
+                sig = schematisation.merge(sig, signal1, eps)
             sig = schematisation.pick_extremes(sig, signal1)
             data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='extremes'))
 

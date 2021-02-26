@@ -66,7 +66,9 @@ def smoothing2(data, k, step):
 
 
 def hann_coefficient(r, n):
-    return (1 - numpy.cos(2 * r * numpy.pi / n)) / 2
+    if n > 0:
+        return (1 - numpy.cos(2 * r * numpy.pi / n)) / 2
+    return -1
 
 
 def correction_hann(data, name):
