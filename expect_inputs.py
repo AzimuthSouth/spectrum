@@ -987,6 +987,7 @@ def update_graph(signal1, schem_filter, schem_sigs, k, graph_width, graph_height
     fig = px.imshow(tbl, color_continuous_scale='GnBu')
     fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10),
                       xaxis={'title': x_title}, yaxis={'title': y_title})
+    fig.update_xaxes(side="top")
     return fig
 
 
