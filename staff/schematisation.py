@@ -49,7 +49,6 @@ def merge_extremes(df, name, d):
     :param d: merge width
     :return: dataFrame
     """
-    # x - input, d - class width
     col_names = df.columns
     x = list(zip(df[col_names[0]].to_numpy(), df[name].to_numpy()))
 
@@ -119,9 +118,6 @@ def is_min(x):
     if (x[0] > x[1]) and (x[1] < x[2]):
         return True
     return False
-
-
-###
 
 
 def extreme_count(x):

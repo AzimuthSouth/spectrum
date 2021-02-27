@@ -23,26 +23,16 @@ class TestSchematisationData(unittest.TestCase):
         self.setdata()
         df = pd.DataFrame(self.x2, columns=['x', 'y'])
         res = schematisation.merge(df, 'y', 1.5)
-        ans = pd.DataFrame([[0.0, 0.0], [1.0, 3.0], [3.0, 3.0], [4.0, 0.0]], columns=['x', 'y'])
-        print(res)
-        print(ans)
+        ans = pd.DataFrame([[0.0, 0.0], [2.0, 2.6666666], [4.0, 0.0]], columns=['x', 'y'])
         self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-7, True)
 
     def test_merge_25(self):
         self.setdata()
-        res = schematisation.merge(self.x3, 1, 0.9)
-        ans = numpy.array([[0.0, 6.0],
-                           [1.0, 12.0],
-                           [2.0, 10.0],
-                           [3.0, 11.0],
-                           [4.0, 8.0],
-                           [5.0, 6.0],
-                           [11.0, 4.0],
-                           [12.0, 7.0],
-                           [13.0, 10.0],
-                           [14.0, 11.0],
-                           [16.0, 11.0]])
-        self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-7, True)
+        df = pd.DataFrame(self.x3, columns=['x', 'y'])
+        res = schematisation.merge(df, 'y', 0.9)
+        ans = pd.DataFrame([[0.0, 6.0], [1.0, 12.0], [2.0, 10.0], [3.0, 11.0], [4.0, 8.0], [8.0, 5.214286],
+                            [12.0, 7.0], [13.0, 10.0], [16.0, 11.0]], columns=['x', 'y'])
+        self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-6, True)
 
     def test_extreme_count(self):
         self.setdata()
@@ -50,3 +40,37 @@ class TestSchematisationData(unittest.TestCase):
                            schematisation.extreme_count(self.x3[:, 1])])
         ans = numpy.array([2, 5, 9])
         self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-7, True)
+
+    def test_is_max(self):
+        data = [[0.0, 1.0, 0.0], [0.0, 1.0, 1.0], [1.0, 0.0, 0.0]]
+        res = [schematisation.is_max(i) for i in data]
+        ans = [True, False, False]
+        self.assertEqual(res, ans)
+
+    def test_is_min(self):
+        data = [[0.0, -1.0, 0.0], [0.0, 1.0, 1.0], [1.0, 0.0, 0.0]]
+        res = [schematisation.is_min(i) for i in data]
+        ans = [True, False, False]
+        self.assertEqual(res, ans)
+
+    def test_is_extreme(self):
+        data = [[0.0, -1.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]
+        res = [schematisation.is_extreme(i) for i in data]
+        ans = [True, True, False]
+        self.assertEqual(res, ans)
+
+    def test_max_frequency_harmonic(self):
+        t = numpy.arange(0.0, 1.0, 0.01)
+        f = 3.5
+        y = numpy.cos(2 * numpy.pi * f * t)
+        res = schematisation.max_frequency(numpy.array(list(zip(t, y))), 10)
+        print(res)
+        self.assertEqual(abs(res - f) < 1.0e-5, True)
+
+    def test_max_frequency_2harmonic(self):
+        t = numpy.arange(0.0, 1.0, 0.01)
+        f1 = 3.5
+        f2 = 10.0
+        y = numpy.cos(2 * numpy.pi * f1 * t) + 2 * numpy.cos(2 * numpy.pi * f2 * t)
+        res = schematisation.max_frequency(numpy.array(list(zip(t, y))), 10)
+        self.assertEqual(abs(res - f2) < 1.0e-5, True)
