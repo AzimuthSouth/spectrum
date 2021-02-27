@@ -1,5 +1,6 @@
 import unittest
 import numpy
+import pandas as pd
 from staff import schematisation
 
 
@@ -13,15 +14,18 @@ class TestSchematisationData(unittest.TestCase):
 
     def test_merge_trend(self):
         self.setdata()
-        res = schematisation.merge(self.x1, 1, 1.0)
-        ans = numpy.array([[0.0, 0.0], [4.0, 2.0]])
+        df = pd.DataFrame(self.x1, columns=['x', 'y'])
+        res = schematisation.merge(df, 'y', 1.0)
+        ans = pd.DataFrame([[0.0, 0.0], [4.0, 2.0]], columns=['x', 'y'])
         self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-7, True)
 
     def test_merge_local_extreme(self):
         self.setdata()
-        res = schematisation.merge(self.x2, 1, 1.5)
-        # print(res)
-        ans = numpy.array([[0.0, 0.0], [1.0, 3.0], [3.0, 3.0], [4.0, 0.0]])
+        df = pd.DataFrame(self.x2, columns=['x', 'y'])
+        res = schematisation.merge(df, 'y', 1.5)
+        ans = pd.DataFrame([[0.0, 0.0], [1.0, 3.0], [3.0, 3.0], [4.0, 0.0]], columns=['x', 'y'])
+        print(res)
+        print(ans)
         self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-7, True)
 
     def test_merge_25(self):

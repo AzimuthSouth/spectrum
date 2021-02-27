@@ -66,7 +66,7 @@ def set_smoothing_symm(data, names, k, step):
     # 1st corrected point
     ind1 = int(numpy.trunc(k / 2))
     # select rows from df
-    index = range(ind1, rows - ind1, step)
+    index = range(ind1, rows - ind1 + 1, step)
     dff = data.iloc[index]
     dff.reset_index(drop=True, inplace=True)
     df1 = dff.copy()
@@ -75,7 +75,7 @@ def set_smoothing_symm(data, names, k, step):
         x = data[name].to_numpy()
         x_smooth = []
         # smooth column
-        for i in range(ind1, len(x) - ind1, step):
+        for i in range(ind1, len(x) - ind1 + 1, step):
             xi = numpy.mean(x[i: k + i])
             x_smooth.append(xi)
         df1[name + '_smooth'] = x_smooth

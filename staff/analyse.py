@@ -1,12 +1,11 @@
 import numpy
 from scipy import signal
-import pandas as pd
 
 def frequencies(n, dt):
     f = numpy.zeros(n)
     for i in range(n):
         f[i] = i / n / dt
-    return f[:int(n / 2)]
+    return numpy.array(f[:int(n / 2) + 1])
 
 
 def spectrum_density(x, fs, nps):

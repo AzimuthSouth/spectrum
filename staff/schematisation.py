@@ -26,8 +26,6 @@ def merge(df, name, d):
             buf.append(x[i])
 
         else:
-            # move last res point to to buf
-            buf = [res[-1]] + buf
             res = res[:-1]
             # average buf points
             ave = average_array(buf)
