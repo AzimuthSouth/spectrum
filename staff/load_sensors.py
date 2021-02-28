@@ -6,7 +6,17 @@ import scipy
 import prepare
 import schematisation
 
+t = np.arange(0.0, 1.01, 0.01)
+f = 3.5
+y = np.cos(2 * np.pi * f * t)
+plt.plot(t, y, label='data')
+plt.xlabel('time [s]')
+plt.ylabel('input [-]')
+plt.legend(loc='best')
+plt.show()
+'''
 df = pd.read_csv('data.txt')
+col_names = df.columns
 col_names = df.columns
 r, c = df.shape
 
@@ -31,7 +41,7 @@ plt.xlabel('time [s]')
 plt.ylabel('input [-]')
 plt.legend(loc='best')
 plt.show()
-
+'''
 '''
 delta = np.mean(abs(time[:-1] - time[1:]))
 s1 = df[col_names[0]].to_numpy()

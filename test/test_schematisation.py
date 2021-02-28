@@ -41,6 +41,12 @@ class TestSchematisationData(unittest.TestCase):
         ans = numpy.array([2, 5, 9])
         self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-7, True)
 
+    def test_extreme_count_harmonic(self):
+        t = numpy.arange(0.0, 1.01, 0.01)
+        f = 4
+        y = numpy.cos(2 * numpy.pi * f * t)
+        self.assertEqual(schematisation.extreme_count(y), 9)
+
     def test_is_max(self):
         data = [[0.0, 1.0, 0.0], [0.0, 1.0, 1.0], [1.0, 0.0, 0.0]]
         res = [schematisation.is_max(i) for i in data]
@@ -61,16 +67,19 @@ class TestSchematisationData(unittest.TestCase):
 
     def test_max_frequency_harmonic(self):
         t = numpy.arange(0.0, 1.0, 0.01)
-        f = 3.5
-        y = numpy.cos(2 * numpy.pi * f * t)
-        res = schematisation.max_frequency(numpy.array(list(zip(t, y))), 10)
-        print(res)
-        self.assertEqual(abs(res - f) < 1.0e-5, True)
+        f = 4
+        y = numpy.sin(2 * numpy.pi * f * t)
+        data = numpy.array(list(zip(t, y)))
+        df = pd.DataFrame(data, columns=['t', 'x'])
+        res = schematisation.max_frequency(df, 'x', 1)
+        self.assertEqual(abs(res - 3.977272) < 1.0e-4, True)
 
     def test_max_frequency_2harmonic(self):
         t = numpy.arange(0.0, 1.0, 0.01)
         f1 = 3.5
         f2 = 10.0
         y = numpy.cos(2 * numpy.pi * f1 * t) + 2 * numpy.cos(2 * numpy.pi * f2 * t)
-        res = schematisation.max_frequency(numpy.array(list(zip(t, y))), 10)
+        data = numpy.array(list(zip(t, y)))
+        df = pd.DataFrame(data, columns=['t', 'x'])
+        res = schematisation.max_frequency(df, 'x', 3)
         self.assertEqual(abs(res - f2) < 1.0e-5, True)

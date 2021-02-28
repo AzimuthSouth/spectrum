@@ -2,6 +2,7 @@ from collections import defaultdict
 import math
 import numpy
 import pandas
+import matplotlib.pyplot as plt
 
 
 def merge(df, name, d):
@@ -160,15 +161,45 @@ def set_n_segments(x, dt):
     seg.append(numpy.array(buf))
     return numpy.array(seg, dtype=numpy.ndarray)
 
+def f_estimate(count,  dt):
+    return count / 2 / dt
 
-def max_frequency(x, n):
-    dt = (numpy.max(x[:, 0]) - numpy.min(x[:, 0])) / n
-    seg = set_n_segments(x, dt)
-    f = []
-    for i in range(len(seg)):
-        dti = seg[i][-2, 0] - seg[i][1, 0]
-        f.append(extreme_count(seg[i][:, 1]) / (2 * dti))
-    return numpy.max(f)
+
+def max_frequency(df, name, n, d=None):
+    """
+    Max frequency estimation
+    :param df: dataFrame input signal
+    :param name: column name
+    :param n: segments for extremes counting
+    :param d: amplitude filter width
+    :return: float, frequency estimation
+    """
+    # get extremes
+    if d is None:
+        extremes = get_extremes(df, name)
+    else:
+        extremes = get_merged_extremes(df, name, d)
+
+    rows, _ = extremes.shape
+    col_names = extremes.columns
+    f_estimation = []
+    time = extremes[col_names[0]].to_numpy()[1: -1]
+    dt = (max(time) - min(time)) / n
+
+    ind = 1
+    t_start = extremes[col_names[0]].iloc[1]
+    for i in range(n):
+        count = 1
+        ti_start = extremes[col_names[0]].iloc[ind]
+        ti_curr = extremes[col_names[0]].iloc[ind]
+        while (ti_curr <= t_start + dt * (i + 1)) and (ind < rows):
+            ind += 1
+            count += 1
+            ti_curr = extremes[col_names[0]].iloc[ind]
+        ti_curr = extremes[col_names[0]].iloc[ind - 1]
+        if ti_curr > ti_start:
+            f_estimation.append(f_estimate(count - 2, ti_curr - ti_start))
+    return max(f_estimation)
 
 
 # number of mid-level crossings
