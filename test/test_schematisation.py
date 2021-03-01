@@ -2,7 +2,6 @@ import unittest
 import numpy
 import pandas as pd
 from staff import schematisation
-import matplotlib.pyplot as plt
 
 
 class TestSchematisationData(unittest.TestCase):
@@ -26,7 +25,6 @@ class TestSchematisationData(unittest.TestCase):
         self.x11 = [[3.0, 0.5, -0.5, -2.0, 1.0], [4.0, 0.5, -1.0, -3.0, 1.0], [4.0, 1, 1.0, -1.0, 3.0],
                     [8.0, 0.5, 1.0, -3.0, 5.0], [9.0, 0.5, 0.5, -4.0, 5.0], [8.0, 0.5, 0.0, -4.0, 4.0],
                     [6.0, 0.5, 1.0, -2.0, 4.0]]
-
 
     def test_merge_trend(self):
         self.setdata()
@@ -150,9 +148,13 @@ class TestSchematisationData(unittest.TestCase):
     def test_correlation_table(self):
         self.setdata()
         df = pd.DataFrame(self.x11, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
-        res = schematisation.correlation_table(df, 'Min', 'Max', -4.0, 5.0, 3)
-        print(res)
-        pass
+        res = schematisation.correlation_table(df, 'Min', 'Max', -4.0, 5.0, 3).to_numpy()
+        ans = [[0.0, 1.0, 2.0], [0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]
+        eps = [numpy.linalg.norm(res - ans)]
+        res = schematisation.correlation_table(df, 'Range', 'Mean', -1.0, 9.0, 2).to_numpy()
+        ans = [[0.5, 0], [3.5, 0]]
+        eps.append(numpy.linalg.norm(res - ans))
+        self.assertEqual(numpy.linalg.norm(eps) < 1.0e-6, True)
 
     def test_pick_cycles(self):
         self.setdata()
