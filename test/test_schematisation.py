@@ -2,6 +2,7 @@ import unittest
 import numpy
 import pandas as pd
 from staff import schematisation
+import matplotlib.pyplot as plt
 
 
 class TestSchematisationData(unittest.TestCase):
@@ -11,6 +12,21 @@ class TestSchematisationData(unittest.TestCase):
         self.x3 = numpy.array([[0.0, 6.0], [1.0, 12.0], [2.0, 10.0], [3.0, 11.0], [4.0, 8.0],
                                [5.0, 6.0], [6.0, 5.5], [7.0, 6.0], [8.0, 5.5], [9.0, 5.0], [10.0, 4.5],
                                [11.0, 4.0], [12.0, 7.0], [13.0, 10.0], [14.0, 11.0], [15.0, 11.5], [16.0, 11.0]])
+        self.x4 = numpy.array([[0.0, 3.0], [1.0, 5.0], [2.0, 3.0], [3.0, 5.0], [4.0, 3.0], [5.0, 5.0],
+                               [9.0, -5.0], [10.0, -3.0], [11.0, -5.0], [12.0, -3.0], [13.0, -5.0], [14.0, -3.0]])
+        self.x5 = numpy.array([[1.0, 5.0], [9.0, -5.0]])
+        self.x6 = numpy.array([[0.0, -3.0], [1.0, -5.0], [2.0, -3.0], [3.0, -5.0], [4.0, -3.0], [5.0, -5.0],
+                               [9.0, 5.0], [10.0, 3.0], [11.0, 5.0], [12.0, 3.0], [13.0, 5.0], [14.0, 3.0]])
+        self.x7 = numpy.array([[1.0, -5.0], [9.0, 5.0]])
+        a = 9.980267e-1
+        self.x8 = numpy.array([[0.0, 0.0], [0.06, a], [0.19, -a], [0.31, a], [0.44, -a], [0.56, a], [0.69, -a],
+                               [0.81, a], [0.94, -a], [1.0, 0.0]])
+        self.x9 = [0.0 if i % 2 == 0 else 1.0 for i in range(10)]
+        self.x10 = [-2.0, 1.0, -3.0, 5.0, -1.0, 3.0, -4.0, 4.0, -2.0]
+        self.x11 = [[3.0, 0.5, -0.5, -2.0, 1.0], [4.0, 0.5, -1.0, -3.0, 1.0], [4.0, 1, 1.0, -1.0, 3.0],
+                    [8.0, 0.5, 1.0, -3.0, 5.0], [9.0, 0.5, 0.5, -4.0, 5.0], [8.0, 0.5, 0.0, -4.0, 4.0],
+                    [6.0, 0.5, 1.0, -2.0, 4.0]]
+
 
     def test_merge_trend(self):
         self.setdata()
@@ -33,6 +49,18 @@ class TestSchematisationData(unittest.TestCase):
         ans = pd.DataFrame([[0.0, 6.0], [1.0, 12.0], [2.0, 10.0], [3.0, 11.0], [4.0, 8.0], [8.0, 5.214286],
                             [12.0, 7.0], [13.0, 10.0], [16.0, 11.0]], columns=['x', 'y'])
         self.assertEqual(numpy.linalg.norm(res - ans) < 1.0e-6, True)
+
+    def test_extreme_merge(self):
+        self.setdata()
+        df = pd.DataFrame(self.x4, columns=['t', 'x'])
+        res = schematisation.merge_extremes(df, 'x', 3.0)
+        ans = pd.DataFrame(self.x5, columns=['t', 'x'])
+        eps = [numpy.linalg.norm(res - ans)]
+        df = pd.DataFrame(self.x6, columns=['t', 'x'])
+        res = schematisation.merge_extremes(df, 'x', 3.0)
+        ans = pd.DataFrame(self.x7, columns=['t', 'x'])
+        eps.append(numpy.linalg.norm(res - ans))
+        self.assertEqual(numpy.linalg.norm(eps) < 1.0e-6, True)
 
     def test_extreme_count(self):
         self.setdata()
@@ -83,3 +111,54 @@ class TestSchematisationData(unittest.TestCase):
         df = pd.DataFrame(data, columns=['t', 'x'])
         res = schematisation.max_frequency(df, 'x', 3)
         self.assertEqual(abs(res - f2) < 1.0e-5, True)
+
+    def test_mean_count(self):
+        t = numpy.arange(0.0, 1.01, 0.01)
+        f = 4
+        y = numpy.sin(2 * numpy.pi * f * t)
+        res = schematisation.mean_count(y)
+        self.assertEqual(abs(res - (2 * f - 1)) < 1.0e-4, True)
+        pass
+
+    def test_pick_extremes(self):
+        self.setdata()
+        df = pd.DataFrame(self.x4, columns=['t', 'x'])
+        res = schematisation.pick_extremes(df, 'x')
+        ans = pd.DataFrame(self.x4, columns=['t', 'x'])
+        eps = [numpy.linalg.norm(res - ans)]
+        t = numpy.arange(0.0, 1.01, 0.01)
+        f = 4
+        y = numpy.sin(2 * numpy.pi * f * t)
+        data = numpy.array(list(zip(t, y)))
+        df = pd.DataFrame(data, columns=['t', 'x'])
+        res = schematisation.pick_extremes(df, 'x')
+        eps.append(numpy.linalg.norm(res - self.x8))
+        self.assertEqual(numpy.linalg.norm(eps) < 1.0e-6, True)
+
+    def test_repetition_rate(self):
+        self.setdata()
+        res = schematisation.repetition_rate(self.x9, count=2)
+        ans = [(0.5, 5.0), (1.0, 5.0)]
+        self.assertEqual(res, ans)
+
+    def test_repetition_rate_1(self):
+        data = numpy.arange(0, 1.01, 0.01)
+        res = schematisation.repetition_rate(data, count=2)
+        ans = [(0.5, 50.0), (1.0, 51.0)]
+        self.assertEqual(res, ans)
+
+    def test_correlation_table(self):
+        self.setdata()
+        df = pd.DataFrame(self.x11, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
+        res = schematisation.correlation_table(df, 'Min', 'Max', -4.0, 5.0, 3)
+        print(res)
+        pass
+
+    def test_pick_cycles(self):
+        self.setdata()
+        t = range(len(self.x10))
+        data = list(zip(t, self.x10))
+        df = pd.DataFrame(data, columns=['t', 'x'])
+        res = numpy.array(schematisation.pick_cycles(df, 'x'))
+        eps = numpy.linalg.norm(res - self.x11)
+        self.assertEqual(numpy.linalg.norm(eps) < 1.0e-6, True)

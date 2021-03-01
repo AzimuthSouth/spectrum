@@ -2,7 +2,6 @@ from collections import defaultdict
 import math
 import numpy
 import pandas
-import matplotlib.pyplot as plt
 
 
 def merge(df, name, d):
@@ -52,15 +51,15 @@ def merge_extremes(df, name, d):
     """
     col_names = df.columns
     x = list(zip(df[col_names[0]].to_numpy(), df[name].to_numpy()))
-
-    # cut constant part at the beginning
+    y = df[name].to_numpy()
+    # choose 1st point
     ind = 1
-    res = [x[0]]
+    if abs(x[0][ind] - x[1][ind]) >= d:
+        res = [x[0], x[1]]
+    else:
+        res = [x[1]]
     i = 1
-    while abs(res[0][ind] - x[i][ind]) <= d:
-        i = i + 1
-    res.append(x[i])
-    curr_is_min = is_min(x[i - 1: i + 2])
+    curr_is_min = is_min(y[i - 1: i + 2])
 
     for j in range(i + 1, len(x)):
         change_brunch = True
@@ -129,8 +128,9 @@ def extreme_count(x):
             res += 1
     return res
 
-
+'''
 # class width, if data series is divided by m classes
+
 def class_width(x, m):
     delta = (numpy.max(x) - numpy.min(x)) / m
     return delta
@@ -160,6 +160,7 @@ def set_n_segments(x, dt):
             buf = [xl[ind - 2], xl[ind - 1], xl[i]]
     seg.append(numpy.array(buf))
     return numpy.array(seg, dtype=numpy.ndarray)
+'''
 
 def f_estimate(count,  dt):
     return count / 2 / dt
@@ -206,6 +207,10 @@ def max_frequency(df, name, n, d=None):
 def mean_count(x):
     res = 0
     mn = numpy.mean(x)
+    if x[0] == mn:
+        res += 1
+    if x[-1] == mn:
+        res += 1
     for i in range(1, len(x)):
         if (x[i - 1] < mn) and (x[i] > mn):
             res += 1
@@ -248,7 +253,7 @@ def pick_extremes(df, name):
     dff = pandas.DataFrame(res, columns=col_names)
     return dff
 
-
+'''
 # schematisation of data series by extremes method
 def extremes_method(data, ind, m):
     ext = pick_max_above0_min_below0(data, ind)
@@ -301,22 +306,32 @@ def pick_ranges(data, ind):
         res.append(abs(p1[ind] - p2[ind]))
     return res
 
-
+'''
 # calc 1D repetition rate
 def repetition_rate(data, width=None, count=None):
+    """
+
+    :param data: 1D array of data to calc repetition rate of classes
+    :param width: class width
+    :param count: classes count
+    :return: dictionary of classes and rates
+    """
     counts = defaultdict()
-    if count is not None:
-        width = (max(data) - min(data)) / count
 
     if width is not None:
-        nmax = 0
-        for x in data:
-            n = int(math.ceil(x / width))
-            counts[n * width] += 1.0
-            nmax = max(n, nmax)
+        count = int(math.ceil((max(data) - min(data)) / width))
+    else:
+        width = (max(data) - min(data)) / count
 
-        for i in range(1, nmax):
-            counts.setdefault(i * width, 0.0)
+    for i in range(count):
+        counts.setdefault((i + 1) * width, 0.0)
+    if width is not None:
+        for x in data:
+            n = int(math.trunc(x / width))
+            if n == count:
+                n -= 1
+            # print('x={}, n={}'.format(x, n))
+            counts[(n + 1) * width] += 1.0
 
     return sorted(counts.items())
 
@@ -381,16 +396,6 @@ def cycle_parameters(x1, x2, c):
     return [abs(x1 - x2), c, (x1 + x2) / 2, min(x1, x2), max(x1, x2)]
 
 
-def _get_round_function(ndigits=None):
-    if ndigits is None:
-        def func(x):
-            return x
-    else:
-        def func(x):
-            return round(x, ndigits)
-    return func
-
-
 def pick_cycles(df, name):
     """
 
@@ -435,118 +440,3 @@ def pick_cycles_as_df(df, name):
     res = pick_cycles(df, name)
     df = pandas.DataFrame(res, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
     return df
-
-
-def count_cycles(data, ndigits=None, n_seg=None, seg_size=None):
-    counts = defaultdict(float)
-
-    cycles = [i[:2] for i in pick_cycles(data)]
-
-    if n_seg is not None:
-        seg_size = (max(data[:, 1]) - min(data[:, 1])) / n_seg
-
-    if seg_size is not None:
-        nmax = 0
-        for rng, count in cycles:
-            n = int(math.ceil(rng / seg_size))  # using int for Python 2 compatibility
-            counts[n * seg_size] += count
-            nmax = max(n, nmax)
-
-        for i in range(1, nmax):
-            counts.setdefault(i * seg_size, 0.0)
-
-    elif ndigits is not None:
-        round_ = _get_round_function(ndigits)
-        for rng, count in cycles:
-            counts[round_(rng)] += count
-
-    else:
-        for rng, count in cycles:
-            counts[rng] += count
-
-    return sorted(counts.items())
-
-
-def rain_flow2(data):
-    """
-    3 point rainflow algorithm to extract means and ranges
-    :param data : [[t, input(t)],..]:
-    :return: [cycle_range, point1, point2]
-    """
-    x = data[:, 1]
-    stack = []
-    res = []
-    [a, b, c] = x[:3]
-    ind = 3
-    mem = 0
-    b_flag = False
-    c_flag = False
-    end_flag = False
-
-    while ind <= len(data):
-
-        if (ind == len(x)) and (mem == 0):
-            end_flag = True
-
-        if end_flag:
-            break
-
-        ab = abs(b - a)
-        bc = abs(c - b)
-
-        if ab == bc:
-            res.append([ab, b, a])
-            if mem == 0:
-                a = c
-                b_flag = True
-                c_flag = True
-            elif mem == 1:
-                a = stack[-1]
-                b = c
-                mem -= 1
-                b_flag = False
-                c_flag = True
-            elif mem >= 2:
-                a = stack[-2]
-                b = stack[-1]
-                mem -= 2
-                b_flag = False
-                c_flag = False
-        elif bc > ab:
-            res.append([ab, b, a])
-            if mem == 0:
-                a = b
-                b = c
-                b_flag = False
-                c_flag = True
-            elif mem == 1:
-                a = stack[-1]
-                b = c
-                mem -= 1
-                b_flag = False
-                c_flag = True
-            elif mem >= 2:
-                a = stack[-2]
-                b = stack[-1]
-                mem -= 2
-                b_flag = False
-                c_flag = False
-        elif bc < ab:
-            mem += 1
-            stack.append(a)
-            a = b
-            b = c
-            b_flag = False
-            c_flag = True
-
-        if b_flag:
-            b = x[ind]
-            ind += 1
-            b_flag = False
-
-        if c_flag:
-            c = x[ind]
-            ind += 1
-            c_flag = False
-
-    res.append([abs(b - a), b, a])
