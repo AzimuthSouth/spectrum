@@ -409,6 +409,25 @@ app.layout = html.Div([
             ], style={'columns': 2}),
 
             html.Label("Input statistics", id='input_stats'),
+            html.Label("Intervals for frequency estimation"),
+            html.Div([
+                dcc.Slider(
+                    id='frequency_est',
+                    min=1,
+                    max=50,
+                    value=25,
+                    step=1),
+                dcc.Input(
+                    id='frequency_est_input',
+                    type='number',
+                    min=1,
+                    max=50,
+                    step=1,
+                    value=25
+                )
+            ], style={'columns': 2}),
+            html.Label("Max frequency", id='f_max'),
+
 
             html.Div([
                 dcc.Graph(id='schem_graph', style={'width': '100%', 'height': '100%'}),
@@ -698,6 +717,26 @@ def set_class_number(sldr, inpt):
     if trigger_id == 'class_number':
         new_input = sldr
     if trigger_id == 'class_number_input':
+        new_slider = inpt
+
+    return [new_slider, new_input]
+
+
+@app.callback(Output('frequency_est', 'value'),
+              Output('frequency_est_input', 'value'),
+              Input('frequency_est', 'value'),
+              Input('frequency_est_input', 'value')
+              )
+def set_smoothing_window(sldr, inpt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(trigger_id)
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'frequency_est':
+        new_input = sldr
+    if trigger_id == 'frequency_est_input':
         new_slider = inpt
 
     return [new_slider, new_input]
@@ -1150,8 +1189,37 @@ def print_input_stats(signal1, t_start, t_end, t_step, loading_data):
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
         s_mean, s_variance, s_deviation, s_koef = schematisation.input_stats(dff, signal1)
-        inp_str = 'Mean value is {:.3e}, standard deviation is {:.3e}, ' \
+        inp_str = 'Input statistics: Mean value is {:.3e}, standard deviation is {:.3e}, ' \
                   'irregular coefficient is {:.3e}'.format(s_mean, s_deviation, s_koef)
+    return inp_str
+
+
+@app.callback(Output('f_max', 'children'),
+              Input('schematisation', 'value'),
+              Input('schem_sigs_prepare', 'value'),
+              Input('amplitude_width_input', 'value'),
+              Input('frequency_est', 'value'),
+              State('t_start', 'value'),
+              State('t_end', 'value'),
+              State('t_start', 'step'),
+              State('loading_data', 'children'))
+def print_max_frequency_estimation(signal1, is_merged, eps, n, t_start, t_end, t_step, loading_data):
+    inp_str = ''
+    if signal1:
+        df = pd.read_json(loading_data, orient='split')
+        cols = df.columns
+        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
+        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
+        dt = 0.0 if t_step is None else t_step / 2
+        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+        dff.reset_index(drop=True, inplace=True)
+        sig = dff[[cols[0], signal1]]
+
+        if 'MG' in is_merged:
+            f = schematisation.max_frequency(sig, signal1, n, eps)
+        else:
+            f = schematisation.max_frequency(sig, signal1, n)
+        inp_str = 'Max frequency is approximately {:.3e}'.format(f)
     return inp_str
 
 
