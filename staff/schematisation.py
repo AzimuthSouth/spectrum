@@ -61,7 +61,7 @@ def merge_extremes(df, name, d):
         res = [x[0], x[1]]
         i += 1
     else:
-        res = [x[i]]
+        res = [x[0], x[i]]
     curr_is_min = is_min(y[i - 1: i + 2])
     # print("input res={}".format(res))
     for j in range(i + 1, len(x)):
