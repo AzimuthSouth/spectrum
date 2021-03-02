@@ -55,13 +55,16 @@ def merge_extremes(df, name, d):
     # choose 1st point
     ind = 1
     i = 0
-    while abs(x[i][ind] - x[i + 1][ind]) < d:
+    while (abs(x[i][ind] - x[i + 1][ind]) < d) and (abs(x[i][ind] - x[0][ind]) < d):
         i += 1
     if i == 0:
         res = [x[0], x[1]]
         i += 1
     else:
-        res = [x[0], x[i]]
+        if abs(x[0][ind] - x[i][ind]) >= d:
+            res = [x[0], x[i]]
+        else:
+            res = [x[i]]
     curr_is_min = is_min(y[i - 1: i + 2])
     # print("input res={}".format(res))
     for j in range(i + 1, len(x)):
