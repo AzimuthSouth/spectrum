@@ -54,13 +54,16 @@ def merge_extremes(df, name, d):
     y = df[name].to_numpy()
     # choose 1st point
     ind = 1
-    if abs(x[0][ind] - x[1][ind]) >= d:
+    i = 0
+    while abs(x[i][ind] - x[i + 1][ind]) < d:
+        i += 1
+    if i == 0:
         res = [x[0], x[1]]
+        i += 1
     else:
-        res = [x[1]]
-    i = 1
+        res = [x[i]]
     curr_is_min = is_min(y[i - 1: i + 2])
-
+    # print("input res={}".format(res))
     for j in range(i + 1, len(x)):
         change_brunch = True
         last = res[-1]
@@ -72,8 +75,9 @@ def merge_extremes(df, name, d):
             res = res[:-1]
             res.append(x[j])
             change_brunch = False
+        # print("change={}, d={}, y={}, res={}".format(change_brunch, abs(res[-1][ind] - x[j][ind]), x[j][ind], res))
         if change_brunch:
-            if abs(res[-1][ind] - x[j][ind]) > d:
+            if abs(res[-1][ind] - x[j][ind]) >= d:
                 res.append(x[j])
                 curr_is_min = not curr_is_min
 
@@ -128,6 +132,7 @@ def extreme_count(x):
             res += 1
     return res
 
+
 '''
 # class width, if data series is divided by m classes
 
@@ -162,7 +167,8 @@ def set_n_segments(x, dt):
     return numpy.array(seg, dtype=numpy.ndarray)
 '''
 
-def f_estimate(count,  dt):
+
+def f_estimate(count, dt):
     return count / 2 / dt
 
 
@@ -253,6 +259,7 @@ def pick_extremes(df, name):
     dff = pandas.DataFrame(res, columns=col_names)
     return dff
 
+
 '''
 # schematisation of data series by extremes method
 def extremes_method(data, ind, m):
@@ -307,6 +314,8 @@ def pick_ranges(data, ind):
     return res
 
 '''
+
+
 # calc 1D repetition rate
 def repetition_rate(data, width=None, count=None):
     """
