@@ -5,7 +5,25 @@ from scipy import signal
 import scipy
 import prepare
 import schematisation
+import plotly.express as px
+x11 = [[3.0, 0.5, -0.5, -2.0, 1.0], [4.0, 0.5, -1.0, -3.0, 1.0], [4.0, 1, 1.0, -1.0, 3.0],
+                    [8.0, 0.5, 1.0, -3.0, 5.0], [9.0, 0.5, 0.5, -4.0, 5.0], [8.0, 0.5, 0.0, -4.0, 4.0],
+                    [6.0, 0.5, 1.0, -2.0, 4.0]]
 
+df = pd.DataFrame(x11, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
+res = schematisation.correlation_table(df, 'Max', 'Min', -4.0, 5.0, 3).to_numpy()
+res = schematisation.correlation_table(df, 'Range', 'Mean', -1.0, 9.0, 2).to_numpy()
+print(res)
+'''
+x_title = 'Mean'
+y_title = 'Range'
+fig = px.imshow(res, color_continuous_scale='GnBu')
+fig.update_layout(margin=dict(l=10, r=10, b=10, t=10),
+                  xaxis={'title': x_title}, yaxis={'title': y_title})
+fig.update_xaxes(side="top", tickangle=0)
+fig.show()
+'''
+'''
 t = np.arange(0.0, 1.01, 0.01)
 f = 3.5
 y = np.cos(2 * np.pi * f * t)
@@ -14,6 +32,7 @@ plt.xlabel('time [s]')
 plt.ylabel('input [-]')
 plt.legend(loc='best')
 plt.show()
+'''
 '''
 df = pd.read_csv('data.txt')
 col_names = df.columns

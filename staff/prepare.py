@@ -13,17 +13,17 @@ def smoothing_symm(data, name, k, step):
     x = data[name].to_numpy()
     x_smooth = []
     # 1st corrected point
-    ind1 = int(numpy.trunc(k / 2))
+    ind1 = int(numpy.trunc(k / 2) - 1)
     # select rows from df
-    index = range(ind1, len(x) - ind1 + 1, step)
+    index = range(ind1, len(x) - ind1 - 1, step)[:(len(x) - k + 1)]
     dff = data.iloc[index]
     dff.reset_index(drop=True, inplace=True)
     # smooth column
-    for i in range(ind1, len(x) - ind1 + 1, step):
+    for i in range(ind1, len(x) - ind1 - 1, step):
         xi = numpy.mean(x[i - ind1: k + i - ind1])
         x_smooth.append(xi)
     df1 = dff.copy()
-    df1[name] = x_smooth
+    df1[name] = x_smooth[:(len(x) - k + 1)]
     return df1
 
 
@@ -39,13 +39,13 @@ def smoothing_delta_symm(data, name, k, step):
     x = data[name].to_numpy()
     x_smooth = []
     # 1st corrected point
-    ind1 = int(numpy.trunc(k / 2))
+    ind1 = int(numpy.trunc(k / 2) - 1)
     # select rows from df
-    index = range(ind1, len(x) - ind1 + 1, step)
+    index = range(ind1, len(x) - ind1 - 1, step)
     dff = data.iloc[index]
     dff.reset_index(drop=True, inplace=True)
     # smooth column
-    for i in range(ind1, len(x) - ind1 + 1, step):
+    for i in range(ind1, len(x) - ind1 - 1, step):
         xi = numpy.mean(x[i - ind1: k + i - ind1])
         x_smooth.append(x[i] - xi)
     df1 = dff.copy()
@@ -64,9 +64,9 @@ def set_smoothing_symm(data, names, k, step):
     """
     rows, _ = data.shape
     # 1st corrected point
-    ind1 = int(numpy.trunc(k / 2))
+    ind1 = int(numpy.trunc(k / 2) - 1)
     # select rows from df
-    index = range(ind1, rows - ind1 + 1, step)
+    index = range(ind1, rows - ind1 - 1, step)
     dff = data.iloc[index]
     dff.reset_index(drop=True, inplace=True)
     df1 = dff.copy()
@@ -75,7 +75,7 @@ def set_smoothing_symm(data, names, k, step):
         x = data[name].to_numpy()
         x_smooth = []
         # smooth column
-        for i in range(ind1, len(x) - ind1 + 1, step):
+        for i in range(ind1, len(x) - ind1 - 1, step):
             xi = numpy.mean(x[i: k + i])
             x_smooth.append(xi)
         df1[name + '_smooth'] = x_smooth
@@ -138,4 +138,6 @@ def set_correction_hann(data, names):
 
 def calc_time_range(time):
     delta = abs(time[:-1] - time[1:])
-    return [min(time), max(time), numpy.mean(delta), numpy.std(delta)]
+    dt = round(numpy.mean(delta), 4)
+    std = round(numpy.std(delta))
+    return [min(time), max(time), dt, std]

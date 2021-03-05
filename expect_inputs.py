@@ -31,7 +31,12 @@ app.layout = html.Div([
     html.H4("Spectrum Analysis", style={'text-align': 'center'}),
     html.Hr(),
 
-    html.Div([
+
+    # html.Label(id='time_range'),
+
+    dcc.Tabs([
+        dcc.Tab(label='Expect signal', children=[
+            html.Div([
         dcc.Upload(
             id='upload_data',
             children=html.Div([
@@ -42,10 +47,6 @@ app.layout = html.Div([
         html.Label("Time range parameters", id='time_range'),
     ]),
 
-    # html.Label(id='time_range'),
-
-    dcc.Tabs([
-        dcc.Tab(label='Expect signal', children=[
             html.Div([
                 dcc.Dropdown(
                     id='signal_1',
@@ -122,7 +123,7 @@ app.layout = html.Div([
                 dcc.Checklist(
                     id='all_signal',
                     options=[{'label': 'all signals', 'value': 'ALL'}]
-                    ),
+                ),
 
                 html.Hr(),
                 html.Div([
@@ -206,9 +207,9 @@ app.layout = html.Div([
                    hidden=True,
                    style={'textAlign': 'right'}),
             dcc.Checklist(
-                    id='all_spectrum',
-                    options=[{'label': 'all signals', 'value': 'ALL'}]
-                    ),
+                id='all_spectrum',
+                options=[{'label': 'all signals', 'value': 'ALL'}]
+            ),
 
             html.Div([
                 html.Label("Resize graph"),
@@ -307,7 +308,7 @@ app.layout = html.Div([
                 dcc.Checklist(
                     id='all_coherence',
                     options=[{'label': 'all signals', 'value': 'ALL'}]
-                    ),
+                ),
 
                 html.Div([
                     html.Label("Resize graph"),
@@ -329,7 +330,7 @@ app.layout = html.Div([
             ])
 
         ]),
-        dcc.Tab(label='Schematisation', children=[
+        dcc.Tab(label='Expect cycles', children=[
             html.Div([
                 dcc.Dropdown(
                     id='schematisation'
@@ -344,7 +345,7 @@ app.layout = html.Div([
                     ],
                     value=['MG'],
                     labelStyle={'display': 'inline-block'}
-                    ),
+                ),
                 dcc.RadioItems(
                     id='schem_filter',
                     options=[
@@ -355,7 +356,6 @@ app.layout = html.Div([
                     labelStyle={'display': 'inline-block'}
                 ),
             ]),
-
 
             dcc.Checklist(
                 id='schem_sigs',
@@ -428,7 +428,6 @@ app.layout = html.Div([
             ], style={'columns': 2}),
             html.Label("Max frequency", id='f_max'),
 
-
             html.Div([
                 dcc.Graph(id='schem_graph', style={'width': '100%', 'height': '100%'}),
                 html.Hr(),
@@ -459,10 +458,10 @@ app.layout = html.Div([
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None)
                 ], style={'width': '40%'})
-            ]),
+            ])
 
-            html.Hr(),
-            html.Label("Correlation Table"),
+        ]),
+        dcc.Tab(label='Correlation', children=[
             dcc.RadioItems(
                 id='corr_table_code',
                 options=[
@@ -497,9 +496,48 @@ app.layout = html.Div([
                     value=10
                 )
             ], style={'columns': 2}),
-
             html.Div([
                 dcc.Graph(id='table_map', style={'width': '100%', 'height': '100%'}),
+                html.Div([
+                    html.Label("Resize graph"),
+                    dcc.Slider(
+                        id='graph_width4',
+                        min=1,
+                        max=15,
+                        value=4,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None),
+                    dcc.Slider(
+                        id='graph_height4',
+                        min=1,
+                        max=15,
+                        value=6,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None)
+                ], style={'width': '40%'})
+            ]),
+
+            html.Label('Connected parameters'),
+            html.Div([
+                dcc.Dropdown(
+                    id='traces',
+                    multi=True
+                )
+            ], style={'display': 'inline-block', 'width': '20%'}),
+            html.Label("Maximum time interval to average connected parameters"),
+            html.Div([
+                dcc.Slider(
+                    id='dt_max',
+                    max=5.0),
+                dcc.Input(
+                    id='dt_max_input',
+                    type='number',
+                    max=5.0
+                )
+            ], style={'columns': 2}),
+
+            html.Div([
+                dcc.Graph(id='trace_map', style={'width': '100%', 'height': '100%'}),
                 html.Hr(),
                 html.Button('Export table', id='pick_table'),
                 html.A('Export table',
@@ -513,23 +551,103 @@ app.layout = html.Div([
                 html.Div([
                     html.Label("Resize graph"),
                     dcc.Slider(
-                        id='graph_width4',
+                        id='graph_width6',
                         min=1,
                         max=15,
-                        value=5,
+                        value=9,
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None),
                     dcc.Slider(
-                        id='graph_height4',
+                        id='graph_height6',
                         min=1,
                         max=15,
-                        value=5,
+                        value=6,
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None)
                 ], style={'width': '40%'})
             ])
 
+        ]),
+
+        dcc.Tab(label='Distribution Estimate', children=[
+            html.Div([
+                dcc.Upload(
+                    id='upload_tables',
+                    children=html.Div([
+                        html.A('Select Files')
+                    ]),
+                ),
+                html.H5(id='filenames'),
+            ]),
+
+            html.Div([
+                dcc.Graph(id='distribution', style={'width': '100%', 'height': '100%'}),
+                html.Hr(),
+                html.Label("Levels"),
+                html.Div([
+                    dcc.Slider(
+                        id='cut1',
+                        min=1,
+                        max=50,
+                        value=25,
+                        step=1),
+                    dcc.Input(
+                        id='cut1_input',
+                        type='number',
+                        min=1,
+                        max=50,
+                        step=1,
+                        value=25
+                    )
+                ], style={'columns': 2}),
+                html.Div([
+                    dcc.Slider(
+                        id='cut2',
+                        min=1,
+                        max=50,
+                        value=25,
+                        step=1),
+                    dcc.Input(
+                        id='cut2_input',
+                        type='number',
+                        min=1,
+                        max=50,
+                        step=1,
+                        value=25
+                    )
+                ], style={'columns': 2}),
+
+                html.Hr(),
+                html.Button('Export', id='res1'),
+                html.A('Export',
+                       id='res2',
+                       download="res.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
+
+                html.Div([
+                    html.Label("Resize graph"),
+                    dcc.Slider(
+                        id='graph_width5',
+                        min=1,
+                        max=15,
+                        value=10,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None),
+                    dcc.Slider(
+                        id='graph_height5',
+                        min=1,
+                        max=15,
+                        value=8,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None)
+                ], style={'width': '40%'})
+
+            ])
         ])
+
     ], style={'height': 60}),
 
     html.Div(id='loading_data', style={'display': 'none'})
@@ -570,6 +688,7 @@ def parse_data(contents, filename):
               Output('coherence_1', 'options'),
               Output('coherence_2', 'options'),
               Output('schematisation', 'options'),
+              Output('traces', 'options'),
               Output('t_start', 'min'),
               Output('t_start', 'max'),
               Output('t_start', 'step'),
@@ -579,6 +698,8 @@ def parse_data(contents, filename):
               Output('time_range_slider', 'min'),
               Output('time_range_slider', 'max'),
               Output('time_range_slider', 'step'),
+              Output('dt_max', 'step'),
+              Output('dt_max_input', 'step'),
               Input('upload_data', 'contents'),
               State('upload_data', 'filename'))
 def upload_file(contents, filename):
@@ -597,10 +718,11 @@ def upload_file(contents, filename):
             options[1:], filename, time_range,
             options[1:], options[1:],
             options[1:], options[1:],
-            options[1:],
+            options[1:], options[1:],
             trp[0], trp[1], trp[2],
             trp[0], trp[1], trp[2],
-            trp[0], trp[1], trp[2]]
+            trp[0], trp[1], trp[2],
+            trp[2], trp[2]]
 
 
 @app.callback(Output('smoothing_window', 'value'),
@@ -611,7 +733,6 @@ def upload_file(contents, filename):
 def set_smoothing_window(sldr, inpt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(trigger_id)
     new_slider = sldr
     new_input = inpt
 
@@ -631,7 +752,6 @@ def set_smoothing_window(sldr, inpt):
 def set_smoothing_window(sldr, inpt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(trigger_id)
     new_slider = sldr
     new_input = inpt
 
@@ -651,7 +771,6 @@ def set_smoothing_window(sldr, inpt):
 def set_smoothing_window(sldr, inpt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(trigger_id)
     new_slider = sldr
     new_input = inpt
 
@@ -671,7 +790,6 @@ def set_smoothing_window(sldr, inpt):
 def set_smoothing_window(sldr, inpt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(trigger_id)
     new_slider = sldr
     new_input = inpt
 
@@ -691,7 +809,6 @@ def set_smoothing_window(sldr, inpt):
 def set_smoothing_window(sldr, inpt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(trigger_id)
     new_slider = sldr
     new_input = inpt
 
@@ -727,16 +844,78 @@ def set_class_number(sldr, inpt):
               Input('frequency_est', 'value'),
               Input('frequency_est_input', 'value')
               )
-def set_smoothing_window(sldr, inpt):
+def set_frequency_est(sldr, inpt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(trigger_id)
     new_slider = sldr
     new_input = inpt
 
     if trigger_id == 'frequency_est':
         new_input = sldr
     if trigger_id == 'frequency_est_input':
+        new_slider = inpt
+
+    return [new_slider, new_input]
+
+
+@app.callback(Output('dt_max', 'value'),
+              Output('dt_max_input', 'value'),
+              Input('dt_max', 'value'),
+              Input('dt_max_input', 'value'),
+              Input('t_start', 'step')
+              )
+def set_dt_max(sldr, inpt, dt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'dt_max':
+        new_input = sldr
+    if trigger_id == 'dt_max_input':
+        new_slider = inpt
+    if trigger_id == 't_start':
+        if dt is None:
+            pass
+        else:
+            new_slider = 2 * dt
+            new_input = 2 * dt
+    return [new_slider, new_input]
+
+
+@app.callback(Output('cut1', 'value'),
+              Output('cut1_input', 'value'),
+              Input('cut1', 'value'),
+              Input('cut1_input', 'value')
+              )
+def set_cut1(sldr, inpt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'cut1':
+        new_input = sldr
+    if trigger_id == 'cut1_input':
+        new_slider = inpt
+
+    return [new_slider, new_input]
+
+
+@app.callback(Output('cut2', 'value'),
+              Output('cut2_input', 'value'),
+              Input('cut2', 'value'),
+              Input('cut2_input', 'value')
+              )
+def set_cut2(sldr, inpt):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    new_slider = sldr
+    new_input = inpt
+
+    if trigger_id == 'cut2':
+        new_input = sldr
+    if trigger_id == 'cut2_input':
         new_slider = inpt
 
     return [new_slider, new_input]
@@ -789,11 +968,11 @@ def update_smoothing_windows(t_start, t_end, t_min, t_max, t_step):
               State('t_start', 'step'))
 def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
                  t_start, t_end, t_range, mode, loading_data, t_min, t_max, t_step):
+
     # set time range if None
     val1 = t_min if t_start is None else t_start
     val2 = t_max if t_end is None else t_end
     dt = 0.0 if t_step is None else t_step / 2
-
     # update time range if it changes
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -815,7 +994,7 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
         dff.reset_index(drop=True, inplace=True)
         for yy in signal_1:
             sig = dff[[cols[0], yy]]
-            print(sig)
+            # print(sig)
 
             data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode=gmode, name=yy))
 
@@ -857,7 +1036,6 @@ def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_signals':
-        print("export signals")
         dff = pd.DataFrame()
         # set time range if None
         val1 = t_min if t_start is None else t_start
@@ -881,7 +1059,6 @@ def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
 
         csv_string = dff.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-        print("string={}".format(csv_string))
         return [csv_string, False]
     # changing
     return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
@@ -976,24 +1153,21 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
         dt = 0.0 if t_step is None else t_step / 2
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        sig = dff[[cols[0], signal1]]
-        if schem_filter == 'SM' and not (k is None) :
-            sig = prepare.smoothing_symm(sig, signal1, k, 1)
+        if schem_filter == 'SM' and not (k is None):
+            dff = prepare.smoothing_symm(dff, signal1, k, 1)
 
         if 'SG' in schem_sigs:
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='input'))
+            data.append(go.Scatter(x=dff[cols[0]], y=dff[signal1], mode=gmode, name='input'))
 
         if 'EX' in schem_sigs:
             # all extremes
-            sig = schematisation.get_extremes(sig, signal1)
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='extremes'))
+            dff = schematisation.get_extremes(dff, signal1)
+            data.append(go.Scatter(x=dff[cols[0]], y=dff[signal1], mode=gmode, name='extremes'))
 
         if 'MG' in is_merged and not (eps is None):
-            sig = schematisation.get_merged_extremes(sig, signal1, eps)
+            dff = schematisation.get_merged_extremes(dff, signal1, eps)
             if 'MG' in schem_sigs and not (eps is None):
-                data.append(go.Scatter(x=sig[cols[0]], y=sig[signal1], mode=gmode, name='merge'))
-
-
+                data.append(go.Scatter(x=dff[cols[0]], y=dff[signal1], mode=gmode, name='merge'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -1003,6 +1177,7 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
 
     fig = go.Figure(data=data, layout=layout)
     return fig
+
 
 @app.callback(Output('schem_sigs', 'value'),
               Input('schem_sigs_prepare', 'value'),
@@ -1032,9 +1207,9 @@ def not_draw_merge(is_merged, sigs):
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height, eps, class_min, class_max, m, code,
-                 t_start, t_end, t_step, loading_data):
-    tbl = pd.DataFrame()
+def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height, eps,
+                 class_min, class_max, m, code, t_start, t_end, t_step, loading_data):
+    tbl = [pd.DataFrame()]
     x_title = ''
     y_title = ''
     if signal1:
@@ -1045,34 +1220,127 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
         dt = 0.0 if t_step is None else t_step / 2
         dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
         dff.reset_index(drop=True, inplace=True)
-        sig = dff[[cols[0], signal1]]
         if schem_filter == 'SM' and not (k is None):
-            sig = prepare.smoothing_symm(sig, signal1, k, 1)
-
+            dff = prepare.smoothing_symm(dff, signal1, k, 1)
         if 'MG' in is_merged and not (eps is None):
-            sig = schematisation.get_merged_extremes(sig, signal1, eps)
+            dff = schematisation.get_merged_extremes(dff, signal1, eps)
         else:
-            sig = schematisation.get_extremes(sig, signal1)
-        # print(sig)
-        cycles = schematisation.pick_cycles_as_df(sig, signal1)
-        # print(cycles)
+            dff = schematisation.get_extremes(dff, signal1)
+        # cycles = schematisation.pick_cycles_as_df(sig, signal1)
+        cycles_numbers = schematisation.pick_cycles_point_number_as_df(dff, signal1)
+        cycles = schematisation.calc_cycles_parameters_by_numbers(dff, signal1, cycles_numbers)
         if m is None:
             pass
         else:
             if code == 'MM':
-                tbl = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
+                tbl = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', mmin_set=class_min,
+                                                                    mmax_set=class_max, count=m)
                 x_title = 'Min'
                 y_title = 'Max'
             if code == 'MR':
-                tbl = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
+                tbl = schematisation.correlation_table_with_traces(cycles, 'Range', 'Mean', mmin_set=class_min,
+                                                                    mmax_set=class_max, count=m)
                 x_title = 'Mean'
                 y_title = 'Range'
 
-    fig = px.imshow(tbl, color_continuous_scale='GnBu')
-    fig.update_layout(width=150 * graph_width, height=100 * graph_height, margin=dict(l=10, r=10, b=10, t=10),
-                      xaxis={'title': x_title}, yaxis={'title': y_title})
-    fig.update_xaxes(side="top", tickangle=0)
+    fig = go.Figure()
+    # fig = px.imshow(tbls[0], color_continuous_scale='GnBu')
+    # fig = make_subplots(cols=1, rows=1, subplot_titles=['Cycles Count'])
+    fig.add_trace(go.Heatmap(x=tbl[0].columns, y=tbl[0].index, z=tbl[0].values, colorscale='Rainbow'))
+
+    fig.update_layout(width=150 * graph_width, height=100 * graph_height,
+                      # margin=dict(l=60, r=60, b=10, t=10),
+                       xaxis={'title': x_title}, yaxis={'title': y_title})
+    # fig.update_xaxes(side="top", tickangle=0)
+
     return fig
+
+
+@app.callback(Output('trace_map', 'figure'),
+              Input('schematisation', 'value'),
+              Input('traces', 'value'),
+              Input('schem_filter', 'value'),
+              Input('schem_sigs_prepare', 'value'),
+              Input('smoothing_window_schem', 'value'),
+              Input('graph_width6', 'value'),
+              Input('graph_height6', 'value'),
+              Input('amplitude_width_input', 'value'),
+              Input('dt_max_input', 'value'),
+              Input('class_min_input', 'value'),
+              Input('class_max_input', 'value'),
+              Input('class_number', 'value'),
+              Input('corr_table_code', 'value'),
+              State('t_start', 'value'),
+              State('t_end', 'value'),
+              State('t_start', 'step'),
+              State('loading_data', 'children'))
+def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph_height, eps, dt_max,
+                 class_min, class_max, m, code, t_start, t_end, t_step, loading_data):
+    fig = go.Figure()
+    x_title = ''
+    y_title = ''
+    if traces is None:
+        pass
+    elif len(traces) > 2:
+        pass
+    else:
+        tbls = [pd.DataFrame() for i in range(len(traces))]
+        fig = make_subplots(rows=1, cols=len(traces), subplot_titles=traces, horizontal_spacing=0.25)
+        if signal1:
+            df = pd.read_json(loading_data, orient='split')
+            cols = df.columns
+            val1 = df[cols[0]].iloc[0] if t_start is None else t_start
+            val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
+            dt = 0.0 if t_step is None else t_step / 2
+            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+            dff.reset_index(drop=True, inplace=True)
+            if schem_filter == 'SM' and not (k is None):
+                dff = prepare.smoothing_symm(dff, signal1, k, 1)
+            if 'MG' in is_merged and not (eps is None):
+                dff = schematisation.get_merged_extremes(dff, signal1, eps)
+            else:
+                dff = schematisation.get_extremes(dff, signal1)
+            cycles_numbers = schematisation.pick_cycles_point_number_as_df(dff, signal1)
+            cycles = schematisation.calc_cycles_parameters_by_numbers(dff, signal1, cycles_numbers, traces, dt_max)
+            if m is None:
+                pass
+            else:
+                if code == 'MM':
+                    tbls = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', traces, class_min,
+                                                                    class_max, m)
+                    x_title = 'Min'
+                    y_title = 'Max'
+                if code == 'MR':
+                    tbls = schematisation.correlation_table_with_traces(cycles, 'Range', 'Mean', traces, class_min,
+                                                                    class_max, m)
+                    x_title = 'Mean'
+                    y_title = 'Range'
+            x_pos = {1: [1.02], 2: [0.395, 1.02]}
+            for i in range(len(traces)):
+                ccl = go.Heatmap(x=tbls[1][i].columns, y=tbls[1][i].index, z=tbls[1][i].values,
+                         colorscale='Rainbow', colorbar=dict(x=x_pos[len(traces)][i]))
+                fig.add_trace(ccl, row=1, col=i + 1)
+
+    fig.update_layout(width=150 * graph_width, height=100 * graph_height,
+                      # margin=dict(l=60, r=60, b=10, t=10),
+                      xaxis={'title': x_title}, yaxis={'title': y_title})
+
+    return fig
+
+
+@app.callback(Output('graph_width6','value'),
+              Output('graph_height6','value'),
+              Input('traces', 'value'),
+              State('graph_width6','value'),
+              State('graph_height6','value'))
+def set_graph_size(traces, w, h):
+    if traces is None:
+        return [w, h]
+    elif len(traces) == 1:
+        return [4, 6]
+    else:
+        return [9, 6]
+
 
 
 @app.callback(Output('link-cycles', 'href'),
@@ -1219,7 +1487,10 @@ def print_max_frequency_estimation(signal1, is_merged, eps, n, t_start, t_end, t
             f = schematisation.max_frequency(sig, signal1, n, eps)
         else:
             f = schematisation.max_frequency(sig, signal1, n)
-        inp_str = 'Max frequency is approximately {:.3e}'.format(f)
+        if type(f) is float:
+            inp_str = 'Max frequency is approximately {:.3e}'.format(f)
+        else:
+            inp_str = f
     return inp_str
 
 
@@ -1296,7 +1567,6 @@ def export_cross_spectrum(all_checked, n_clicks, spectrum_1, spectrum_2, t_start
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_spectrum':
-        print("in export cross")
         dfres = pd.DataFrame()
         # set time range if None
         val1 = t_min if t_start is None else t_start
@@ -1393,7 +1663,6 @@ def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t
                      k, npseg, loading_data, t_min, t_max, t_step):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    print(all_checked)
     # button click
     if triggered_id == 'pick_coherence':
         dfres = pd.DataFrame()
