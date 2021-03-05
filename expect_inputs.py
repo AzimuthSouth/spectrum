@@ -1320,10 +1320,14 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
                 ccl = go.Heatmap(x=tbls[1][i].columns, y=tbls[1][i].index, z=tbls[1][i].values,
                          colorscale='Rainbow', colorbar=dict(x=x_pos[len(traces)][i]))
                 fig.add_trace(ccl, row=1, col=i + 1)
+    if traces is None:
+        pass
+    else:
+        for i in range(len(traces)):
+            fig.update_xaxes(title_text=x_title, row=1, col=i + 1)
+            fig.update_yaxes(title_text=y_title, row=1, col=i + 1)
 
-    fig.update_layout(width=150 * graph_width, height=100 * graph_height,
-                      # margin=dict(l=60, r=60, b=10, t=10),
-                      xaxis={'title': x_title}, yaxis={'title': y_title})
+    fig.update_layout(width=150 * graph_width, height=100 * graph_height)
 
     return fig
 
