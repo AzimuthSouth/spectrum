@@ -8,12 +8,15 @@ from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
+import numpy as np
 from staff import prepare
 from staff import analyse
 from staff import schematisation
 from staff import pipeline
 from scipy import signal
+from staff import loaddata
 import urllib
+import json
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -31,21 +34,20 @@ app.layout = html.Div([
     html.H4("Spectrum Analysis", style={'text-align': 'center'}),
     html.Hr(),
 
-
     # html.Label(id='time_range'),
 
     dcc.Tabs([
         dcc.Tab(label='Expect signal', children=[
             html.Div([
-        dcc.Upload(
-            id='upload_data',
-            children=html.Div([
-                html.A('Select File')
+                dcc.Upload(
+                    id='upload_data',
+                    children=html.Div([
+                        html.A('Select File')
+                    ]),
+                ),
+                html.H5(id='filename'),
+                html.Label("Time range parameters", id='time_range'),
             ]),
-        ),
-        html.H5(id='filename'),
-        html.Label("Time range parameters", id='time_range'),
-    ]),
 
             html.Div([
                 dcc.Dropdown(
@@ -576,10 +578,19 @@ app.layout = html.Div([
                     children=html.Div([
                         html.A('Select Files')
                     ]),
+                    multiple=True
                 ),
                 html.H5(id='filenames'),
             ]),
-
+            dcc.RadioItems(
+                id='corr_code',
+                options=[
+                    {'label': 'min/max', 'value': 'MM'},
+                    {'label': 'mean/range', 'value': 'MR'}
+                ],
+                value='MM',
+                labelStyle={'display': 'inline-block'}
+            ),
             html.Div([
                 dcc.Graph(id='distribution', style={'width': '100%', 'height': '100%'}),
                 html.Hr(),
@@ -589,7 +600,7 @@ app.layout = html.Div([
                         id='cut1',
                         min=1,
                         max=50,
-                        value=25,
+                        value=2,
                         step=1),
                     dcc.Input(
                         id='cut1_input',
@@ -597,7 +608,7 @@ app.layout = html.Div([
                         min=1,
                         max=50,
                         step=1,
-                        value=25
+                        value=2
                     )
                 ], style={'columns': 2}),
                 html.Div([
@@ -605,7 +616,7 @@ app.layout = html.Div([
                         id='cut2',
                         min=1,
                         max=50,
-                        value=25,
+                        value=2,
                         step=1),
                     dcc.Input(
                         id='cut2_input',
@@ -613,7 +624,7 @@ app.layout = html.Div([
                         min=1,
                         max=50,
                         step=1,
-                        value=25
+                        value=2
                     )
                 ], style={'columns': 2}),
 
@@ -640,7 +651,7 @@ app.layout = html.Div([
                         id='graph_height5',
                         min=1,
                         max=15,
-                        value=8,
+                        value=6,
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None)
                 ], style={'width': '40%'})
@@ -650,7 +661,8 @@ app.layout = html.Div([
 
     ], style={'height': 60}),
 
-    html.Div(id='loading_data', style={'display': 'none'})
+    html.Div(id='loading_data', style={'display': 'none'}),
+    html.Div(id='loading_corr', style={'display': 'none'})
 ])
 
 
@@ -883,44 +895,6 @@ def set_dt_max(sldr, inpt, dt):
     return [new_slider, new_input]
 
 
-@app.callback(Output('cut1', 'value'),
-              Output('cut1_input', 'value'),
-              Input('cut1', 'value'),
-              Input('cut1_input', 'value')
-              )
-def set_cut1(sldr, inpt):
-    ctx = dash.callback_context
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    new_slider = sldr
-    new_input = inpt
-
-    if trigger_id == 'cut1':
-        new_input = sldr
-    if trigger_id == 'cut1_input':
-        new_slider = inpt
-
-    return [new_slider, new_input]
-
-
-@app.callback(Output('cut2', 'value'),
-              Output('cut2_input', 'value'),
-              Input('cut2', 'value'),
-              Input('cut2_input', 'value')
-              )
-def set_cut2(sldr, inpt):
-    ctx = dash.callback_context
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    new_slider = sldr
-    new_input = inpt
-
-    if trigger_id == 'cut2':
-        new_input = sldr
-    if trigger_id == 'cut2_input':
-        new_slider = inpt
-
-    return [new_slider, new_input]
-
-
 @app.callback(Output('smoothing_window', 'max'),
               Output('smoothing_window_input', 'max'),
               Output('smoothing_window_spectrum', 'max'),
@@ -968,7 +942,6 @@ def update_smoothing_windows(t_start, t_end, t_min, t_max, t_step):
               State('t_start', 'step'))
 def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
                  t_start, t_end, t_range, mode, loading_data, t_min, t_max, t_step):
-
     # set time range if None
     val1 = t_min if t_start is None else t_start
     val2 = t_max if t_end is None else t_end
@@ -1234,23 +1207,23 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
         else:
             if code == 'MM':
                 tbl = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', mmin_set=class_min,
-                                                                    mmax_set=class_max, count=m)
+                                                                   mmax_set=class_max, count=m)
                 x_title = 'Min'
                 y_title = 'Max'
             if code == 'MR':
                 tbl = schematisation.correlation_table_with_traces(cycles, 'Range', 'Mean', mmin_set=class_min,
-                                                                    mmax_set=class_max, count=m)
+                                                                   mmax_set=class_max, count=m)
                 x_title = 'Mean'
                 y_title = 'Range'
 
     fig = go.Figure()
     # fig = px.imshow(tbls[0], color_continuous_scale='GnBu')
     # fig = make_subplots(cols=1, rows=1, subplot_titles=['Cycles Count'])
-    fig.add_trace(go.Heatmap(x=tbl[0].columns, y=tbl[0].index, z=tbl[0].values, colorscale='Rainbow'))
+    fig.add_trace(go.Heatmap(x=tbl[0].columns, y=tbl[0].index, z=tbl[0].values, colorscale='GnBu'))
 
     fig.update_layout(width=150 * graph_width, height=100 * graph_height,
                       # margin=dict(l=60, r=60, b=10, t=10),
-                       xaxis={'title': x_title}, yaxis={'title': y_title})
+                      xaxis={'title': x_title}, yaxis={'title': y_title})
     # fig.update_xaxes(side="top", tickangle=0)
 
     return fig
@@ -1307,18 +1280,18 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
             else:
                 if code == 'MM':
                     tbls = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', traces, class_min,
-                                                                    class_max, m)
+                                                                        class_max, m)
                     x_title = 'Min'
                     y_title = 'Max'
                 if code == 'MR':
                     tbls = schematisation.correlation_table_with_traces(cycles, 'Range', 'Mean', traces, class_min,
-                                                                    class_max, m)
+                                                                        class_max, m)
                     x_title = 'Mean'
                     y_title = 'Range'
             x_pos = {1: [1.02], 2: [0.395, 1.02]}
             for i in range(len(traces)):
                 ccl = go.Heatmap(x=tbls[1][i].columns, y=tbls[1][i].index, z=tbls[1][i].values,
-                         colorscale='Rainbow', colorbar=dict(x=x_pos[len(traces)][i]))
+                                 colorscale='GnBu', colorbar=dict(x=x_pos[len(traces)][i]))
                 fig.add_trace(ccl, row=1, col=i + 1)
     if traces is None:
         pass
@@ -1332,11 +1305,11 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
     return fig
 
 
-@app.callback(Output('graph_width6','value'),
-              Output('graph_height6','value'),
+@app.callback(Output('graph_width6', 'value'),
+              Output('graph_height6', 'value'),
               Input('traces', 'value'),
-              State('graph_width6','value'),
-              State('graph_height6','value'))
+              State('graph_width6', 'value'),
+              State('graph_height6', 'value'))
 def set_graph_size(traces, w, h):
     if traces is None:
         return [w, h]
@@ -1344,7 +1317,6 @@ def set_graph_size(traces, w, h):
         return [4, 6]
     else:
         return [9, 6]
-
 
 
 @app.callback(Output('link-cycles', 'href'),
@@ -1690,6 +1662,123 @@ def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
         return [csv_string, False]
     return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
+@app.callback(Output('loading_corr', 'children'),
+              Output('filenames', 'children'),
+              Output('cut1', 'max'),
+              Output('cut1_input', 'max'),
+              Output('cut2', 'max'),
+              Output('cut2_input', 'max'),
+              Input('upload_tables', 'contents'),
+              State('upload_tables', 'filename'))
+def upload_file(contents, filenames):
+    df = pd.DataFrame()
+    nm = ''
+    rows = 3
+    if contents:
+        df = loaddata.load_and_ave_set(filenames)
+        rows, _ = df.shape
+        nm = loaddata.load_files(filenames)
+
+    return [df.to_json(date_format='iso', orient='split'),
+            nm, rows, rows, rows, rows]
+
+
+@app.callback(Output('distribution', 'figure'),
+              Output('cut1', 'value'),
+              Output('cut1_input', 'value'),
+              Output('cut2', 'value'),
+              Output('cut2_input', 'value'),
+              Input('graph_width5', 'value'),
+              Input('graph_height5', 'value'),
+              Input('cut1', 'value'),
+              Input('cut1_input', 'value'),
+              Input('cut2', 'value'),
+              Input('cut2_input', 'value'),
+              Input('loading_corr', 'children'),
+              Input('distribution', 'clickData'),
+              Input('corr_code', 'value'))
+def update_graph(graph_width, graph_height, cut1, cut1_input, cut2, cut2_input,  loading_data, click_data, code):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    new_cut1 = cut1
+    new_input1 = cut1_input
+    new_cut2 = cut2
+    new_input2 = cut2_input
+
+    if trigger_id == 'cut1':
+        new_input1 = cut1
+    if trigger_id == 'cut1_input':
+        new_cut1 = cut1_input
+    if trigger_id == 'cut2':
+        new_input2 = cut2
+    if trigger_id == 'cut2_input':
+        new_cut2 = cut2_input
+
+
+
+    if code == 'MM':
+        x_title = 'Min'
+        y_title = 'Max'
+    else:
+        x_title = 'Mean'
+        y_title = 'Range'
+
+    fig = make_subplots(
+        rows=2, cols=2,
+        specs=[[{"rowspan": 2}, {}],
+               [None, {}]],
+        subplot_titles=("Correlation Table", "Cycles Count", "Cycles Count"), horizontal_spacing=0.25)
+    df = pd.read_json(loading_data, orient='split')
+    if df.empty:
+        pass
+    else:
+        rows, cols = df.shape
+        hist1_data = df.index[cut1 - 1]
+        hist2_data = df.columns[cut2 - 1]
+        if trigger_id == 'distribution':
+            hist1_data = click_data['points'][0]['y']
+            hist2_data = click_data['points'][0]['x']
+            new_cut1 = df.index.get_loc(hist1_data)
+            new_input1 = new_cut1
+            new_cut2 = df.columns.get_loc(hist2_data)
+            new_input2 = new_cut2
+
+        if rows * cols > 0:
+            hist1 = df.loc[hist1_data].to_numpy()
+            hist2 = df[hist2_data].to_numpy()
+
+            print('hist1={}'.format(hist1))
+            print('hist2={}'.format(hist2))
+            classes = np.linspace(1, rows, rows)
+            fig.add_trace(go.Heatmap(x=df.columns, y=df.index, z=df.values, colorscale='gnbu', colorbar=dict(x=0.395)),
+                          row=1, col=1)
+            fig.add_trace(go.Bar(x=classes, y=hist1, marker_color='rgb(8,64,129)',
+                                 name=y_title + '=' + str(new_cut1 + 1)),
+                          row=1, col=2)
+            fig.add_trace(go.Bar(x=classes, y=hist2, marker_color='rgb(153,215,186)',
+                                 name=x_title + '=' + str(new_cut2 + 1)),
+                          row=2, col=2)
+
+    fig.update_layout(xaxis={'title': x_title},
+                      yaxis={'title': y_title},
+                      margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                      hovermode='closest', clickmode='event',
+                      width=150 * graph_width, height=100 * graph_height,
+                      plot_bgcolor='rgb(247,252,240)')
+
+    return [fig, new_cut1, new_input1, new_cut2, new_input2]
+
+
+@app.callback(Output('corr_code', 'value'),
+              Input('corr_table_code', 'value'))
+def connect_corr_codes(code):
+    return code
+
+
+
 
 
 if __name__ == '__main__':

@@ -6,14 +6,14 @@ import scipy
 import prepare
 import schematisation
 import plotly.express as px
-x11 = [[3.0, 0.5, -0.5, -2.0, 1.0], [4.0, 0.5, -1.0, -3.0, 1.0], [4.0, 1, 1.0, -1.0, 3.0],
-                    [8.0, 0.5, 1.0, -3.0, 5.0], [9.0, 0.5, 0.5, -4.0, 5.0], [8.0, 0.5, 0.0, -4.0, 4.0],
-                    [6.0, 0.5, 1.0, -2.0, 4.0]]
 
-df = pd.DataFrame(x11, columns=['Range', 'Count', 'Mean', 'Min', 'Max'])
-res = schematisation.correlation_table(df, 'Max', 'Min', -4.0, 5.0, 3).to_numpy()
-res = schematisation.correlation_table(df, 'Range', 'Mean', -1.0, 9.0, 2).to_numpy()
-print(res)
+df1 = pd.read_csv('corr_table.txt', index_col=0)
+df2 = pd.read_csv('corr_table.txt', index_col=0)
+df0 = pd.DataFrame(columns = df1.columns, index=df1.index)
+col_names = df1.columns
+r, c = df1.shape
+print(df1)
+print(df1 + df2)
 '''
 x_title = 'Mean'
 y_title = 'Range'

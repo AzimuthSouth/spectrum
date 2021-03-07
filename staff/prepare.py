@@ -141,3 +141,5 @@ def calc_time_range(time):
     dt = round(numpy.mean(delta), 4)
     std = round(numpy.std(delta))
     return [min(time), max(time), dt, std]
+
+
