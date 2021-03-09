@@ -579,7 +579,7 @@ def is_between(x, mn, mx):
 # calc range and mean values for cycle
 def cycle_parameters(x1, x2, c):
     # return range, count, mean, min, max
-    return [abs(x1 - x2), c, (x1 + x2) / 2, min(x1, x2), max(x1, x2)]
+    return [abs(x1 - x2) / 2, c, (x1 + x2) / 2, min(x1, x2), max(x1, x2)]
 
 
 def cycle_point_numbers(x1, x2, c):
