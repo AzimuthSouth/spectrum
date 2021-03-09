@@ -494,6 +494,84 @@ def correlation_table_with_traces(cycles, name1, name2, traces_names=[], mmin_se
     return [df, df_traces]
 
 
+def correlation_table_with_traces_2(cycles, name1, name2, traces_names=[], mmin_set1=None, mmax_set1=None,
+                                    mmin_set2 = None, mmax_set2 = None, count=10):
+    """
+    Calc correlation table min-max or mean-range for loading input
+    :param cycles: dataFrame with extracted half-cycles
+    :param count:  class numbers
+    :param name1: variable 1 (min or mean)
+    :param name2: variable 2 (max or range)
+    :param traces_names: additional signals
+    :param mmin_set: classes minimum
+    :param mmax_set: classes maximum
+    :return: dataFrame with correlation table
+    """
+    rows, _ = cycles.shape
+    # set classes width
+    mmin1 = cycles[name1].min() if mmin_set1 is None else mmin_set1
+    mmax1 = cycles[name1].max() if mmax_set1 is None else mmax_set1
+    mmin2 = cycles[name2].min() if mmin_set2 is None else mmin_set2
+    mmax2 = cycles[name2].max() if mmax_set2 is None else mmax_set2
+
+    w1 = (mmax1 - mmin1) / count
+    w2 = (mmax2 - mmin2) / count
+
+    # set classes names
+    name_rows = []
+    name_cols = []
+    for i in range(count):
+        r11 = mmin1 + w1 * i
+        r21 = mmin1 + w1 * (i + 1)
+        r12 = mmin2 + w2 * i
+        r22 = mmin2 + w2 * (i + 1)
+
+        name_rows.append("{:.2f}-{:.2f}".format(r11, r21))
+        name_cols.append("{:.2f}-{:.2f}".format(r12, r22))
+        # name_rows.append("{:.2f}".format(r2))
+        # name_cols.append("{:.2f}".format(r2))
+    res = numpy.zeros((count, count))
+    traces = [numpy.empty((count, count), dtype=list) for i in range(len(traces_names))]
+    traces_mean = [numpy.zeros((count, count)) for i in range(len(traces_names))]
+    if w1 == 0 or w2 ==0:
+        res += cycles.iloc[0]['Count']
+    for i in range(rows):
+        ind1 = 0
+        ind2 = 0
+        if w1 > 0 and w2 > 0:
+            ind1 = int(math.trunc((cycles.iloc[i][name1] - mmin1) / w1))
+            ind2 = int(math.trunc((cycles.iloc[i][name2] - mmin2) / w2))
+            if ind1 == count:
+                ind1 -= 1
+            if ind2 == count:
+                ind2 -= 1
+            # print("x={}, y={}, ind1={}, ind2={}".format(cycles.iloc[i][name1], cycles.iloc[i][name2], ind1, ind2))
+        if is_between(ind1, 0, count) and is_between(ind2, 0, count):
+            res[ind1][ind2] += cycles.iloc[i]['Count']
+            for j in range(len(traces_names)):
+                if cycles[traces_names[j]][i] == numpy.inf:
+                    pass
+                else:
+                    if traces[j][ind1][ind2] is None:
+                        traces[j][ind1][ind2] = []
+                    traces[j][ind1][ind2].append(cycles[traces_names[j]][i])
+    for j in range(len(traces_names)):
+        for i in range(count):
+            for k in range(count):
+                if traces[j][i][k] is None:
+                    pass
+                else:
+                    traces_mean[j][i][k] = numpy.mean(traces[j][i][k])
+    df_traces = []
+
+    df = pandas.DataFrame(res, columns=name_cols, index=name_rows)
+    for j in range(len(traces_names)):
+        dff = pandas.DataFrame(traces_mean[j], columns=name_cols, index=name_rows)
+        df_traces.append(dff)
+    return [df, df_traces]
+
+
+
 def is_between(x, mn, mx):
     return (x >= mn) and (x <= mx)
 

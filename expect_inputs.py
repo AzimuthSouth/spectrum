@@ -469,10 +469,11 @@ app.layout = html.Div([
                     {'label': 'min/max', 'value': 'MM'},
                     {'label': 'mean/range', 'value': 'MR'}
                 ],
-                value='MM',
+                value='MR',
                 labelStyle={'display': 'inline-block'}
             ),
-            html.Label("Classes range"),
+            html.Label("Classes intervals"),
+            html.Label(id='range1', children='mean'),
             html.Div([
                 dcc.Input(
                     id='class_min_input',
@@ -485,6 +486,20 @@ app.layout = html.Div([
                     step=0.01
                 ),
             ], style={'columns': 2}),
+            html.Label(id='range2', children='range'),
+            html.Div([
+                dcc.Input(
+                    id='class_min_input2',
+                    type='number',
+                    step=0.01
+                ),
+                dcc.Input(
+                    id='class_max_input2',
+                    type='number',
+                    step=0.01
+                ),
+            ], style={'columns': 2}),
+
             html.Label("Classes count"),
             html.Div([
                 dcc.Slider(
@@ -891,11 +906,8 @@ def set_dt_max(sldr, inpt, dt):
     if trigger_id == 'dt_max_input':
         new_slider = inpt
     if trigger_id == 't_start':
-        if dt is None:
-            pass
-        else:
-            new_slider = 2 * dt
-            new_input = 2 * dt
+        new_slider = None
+        new_input = None
     return [new_slider, new_input]
 
 
@@ -1178,6 +1190,8 @@ def not_draw_merge(is_merged, sigs):
               Input('amplitude_width_input', 'value'),
               Input('class_min_input', 'value'),
               Input('class_max_input', 'value'),
+              Input('class_min_input2', 'value'),
+              Input('class_max_input2', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
               State('t_start', 'value'),
@@ -1185,7 +1199,7 @@ def not_draw_merge(is_merged, sigs):
               State('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height, eps,
-                 class_min, class_max, m, code, t_start, t_end, t_step, loading_data):
+                 class_min, class_max, class_min2, class_max2, m, code, t_start, t_end, t_step, loading_data):
     tbl = [pd.DataFrame()]
     x_title = ''
     y_title = ''
@@ -1210,13 +1224,13 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
             pass
         else:
             if code == 'MM':
-                tbl = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', mmin_set=class_min,
-                                                                   mmax_set=class_max, count=m)
+                tbl = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', mmin_set1=class_min,
+                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
                 x_title = 'Min'
                 y_title = 'Max'
             if code == 'MR':
-                tbl = schematisation.correlation_table_with_traces(cycles, 'Mean', 'Range', mmin_set=class_min,
-                                                                   mmax_set=class_max, count=m)
+                tbl = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', mmin_set1=class_min,
+                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
                 x_title = 'Range'
                 y_title = 'Mean'
 
@@ -1228,7 +1242,7 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
     fig.update_layout(width=150 * graph_width, height=100 * graph_height,
                       # margin=dict(l=60, r=60, b=10, t=10),
                       xaxis={'title': x_title}, yaxis={'title': y_title})
-    # fig.update_xaxes(side="top", tickangle=0)
+    fig.update_xaxes(tickangle=-90)
 
     return fig
 
@@ -1245,6 +1259,8 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
               Input('dt_max_input', 'value'),
               Input('class_min_input', 'value'),
               Input('class_max_input', 'value'),
+              Input('class_min_input2', 'value'),
+              Input('class_max_input2', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
               State('t_start', 'value'),
@@ -1252,7 +1268,7 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
               State('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph_height, eps, dt_max,
-                 class_min, class_max, m, code, t_start, t_end, t_step, loading_data):
+                 class_min, class_max,class_min2, class_max2, m, code, t_start, t_end, t_step, loading_data):
     fig = go.Figure()
     x_title = ''
     y_title = ''
@@ -1283,13 +1299,13 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
                 pass
             else:
                 if code == 'MM':
-                    tbls = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', traces, class_min,
-                                                                        class_max, m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', traces, mmin_set1=class_min,
+                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
                     x_title = 'Min'
                     y_title = 'Max'
                 if code == 'MR':
-                    tbls = schematisation.correlation_table_with_traces(cycles, 'Mean', 'Range', traces, class_min,
-                                                                        class_max, m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces, mmin_set1=class_min,
+                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
                     x_title = 'Range'
                     y_title = 'Mean'
             x_pos = {1: [1.02], 2: [0.395, 1.02]}
@@ -1305,7 +1321,7 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
             fig.update_yaxes(title_text=y_title, row=1, col=i + 1)
 
     fig.update_layout(width=150 * graph_width, height=100 * graph_height)
-
+    fig.update_xaxes(tickangle=-90)
     return fig
 
 
@@ -1377,13 +1393,16 @@ def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t
               Input('dt_max_input', 'value'),
               Input('class_min_input', 'value'),
               Input('class_max_input', 'value'),
+              Input('class_min_input2', 'value'),
+              Input('class_max_input2', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
               State('t_start', 'value'),
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_max, class_min, class_max, m, code,
+def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_max, class_min, class_max,
+                 class_min2, class_max2, m, code,
                  t_start, t_end, t_step, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
@@ -1410,12 +1429,12 @@ def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_
                 pass
             else:
                 if code == 'MM':
-                    tbls = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', traces, class_min,
-                                                                        class_max, m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', traces, mmin_set1=class_min,
+                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
 
                 if code == 'MR':
-                    tbls = schematisation.correlation_table_with_traces(cycles, 'Mean', 'Range', traces, class_min,
-                                                                        class_max, m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces, mmin_set1=class_min,
+                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
                 # collect all tables to list
                 data = [tbls[0].to_json(date_format='iso', orient='split')]
                 for i in range(len(traces)):
@@ -1788,8 +1807,18 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
                           hovermode='closest', clickmode='event',
                           width=150 * graph_width, height=100 * graph_height,
                           plot_bgcolor='rgb(247,252,240)')
+        fig.update_xaxes(tickangle=-90)
 
     return [fig, new_cut1, new_input1, new_cut2, new_input2]
+
+@app.callback(Output('range1', 'children'),
+              Output('range2', 'children'),
+              Input('corr_table_code', 'value'))
+def update_labels(code):
+    if code == 'MM':
+        return ['max', 'min']
+    else:
+        return ['mean', 'range']
 
 
 if __name__ == '__main__':
