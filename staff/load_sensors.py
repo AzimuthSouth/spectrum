@@ -9,7 +9,7 @@ import plotly.express as px
 
 df1 = pd.read_csv('corr_table.txt', index_col=0)
 df2 = pd.read_csv('corr_table.txt', index_col=0)
-df0 = pd.DataFrame(columns = df1.columns, index=df1.index)
+df0 = pd.DataFrame(columns=df1.columns, index=df1.index)
 col_names = df1.columns
 r, c = df1.shape
 print(df1)

@@ -1,7 +1,6 @@
 import base64
 import io
 import plotly.graph_objs as go
-import plotly.express as px
 from plotly.subplots import make_subplots
 import dash
 from dash.dependencies import Input, Output, State
@@ -570,7 +569,6 @@ app.layout = html.Div([
             ])
 
         ]),
-
         dcc.Tab(label='Distribution Estimate', children=[
             html.Div([
                 dcc.Upload(
@@ -582,6 +580,12 @@ app.layout = html.Div([
                 ),
                 html.H5(id='filenames'),
             ]),
+            html.Div([
+                dcc.Dropdown(
+                    id='estimation'
+                )
+            ], style={'display': 'inline-block', 'width': '20%'}),
+
             dcc.RadioItems(
                 id='corr_code',
                 options=[
@@ -1211,10 +1215,10 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
                 x_title = 'Min'
                 y_title = 'Max'
             if code == 'MR':
-                tbl = schematisation.correlation_table_with_traces(cycles, 'Range', 'Mean', mmin_set=class_min,
+                tbl = schematisation.correlation_table_with_traces(cycles, 'Mean', 'Range', mmin_set=class_min,
                                                                    mmax_set=class_max, count=m)
-                x_title = 'Mean'
-                y_title = 'Range'
+                x_title = 'Range'
+                y_title = 'Mean'
 
     fig = go.Figure()
     # fig = px.imshow(tbls[0], color_continuous_scale='GnBu')
@@ -1284,10 +1288,10 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
                     x_title = 'Min'
                     y_title = 'Max'
                 if code == 'MR':
-                    tbls = schematisation.correlation_table_with_traces(cycles, 'Range', 'Mean', traces, class_min,
+                    tbls = schematisation.correlation_table_with_traces(cycles, 'Mean', 'Range', traces, class_min,
                                                                         class_max, m)
-                    x_title = 'Mean'
-                    y_title = 'Range'
+                    x_title = 'Range'
+                    y_title = 'Mean'
             x_pos = {1: [1.02], 2: [0.395, 1.02]}
             for i in range(len(traces)):
                 ccl = go.Heatmap(x=tbls[1][i].columns, y=tbls[1][i].index, z=tbls[1][i].values,
@@ -1365,10 +1369,12 @@ def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t
               Output('link-table', 'hidden'),
               Input('pick_table', 'n_clicks'),
               Input('schematisation', 'value'),
+              Input('traces', 'value'),
               Input('schem_filter', 'value'),
               Input('schem_sigs_prepare', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('amplitude_width_input', 'value'),
+              Input('dt_max_input', 'value'),
               Input('class_min_input', 'value'),
               Input('class_max_input', 'value'),
               Input('class_number', 'value'),
@@ -1377,7 +1383,7 @@ def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t
               State('t_end', 'value'),
               State('t_start', 'step'),
               State('loading_data', 'children'))
-def export_table(n_clicks, signal1, schem_filter, is_merged, k, eps, class_min, class_max, m, code,
+def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_max, class_min, class_max, m, code,
                  t_start, t_end, t_step, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
@@ -1392,26 +1398,32 @@ def export_table(n_clicks, signal1, schem_filter, is_merged, k, eps, class_min, 
             dt = 0.0 if t_step is None else t_step / 2
             dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
             dff.reset_index(drop=True, inplace=True)
-            sig = dff[[cols[0], signal1]]
             if schem_filter == 'SM':
-                sig = prepare.smoothing_symm(sig, signal1, k, 1)
-
+                dff = prepare.smoothing_symm(dff, signal1, k, 1)
             if 'MG' in is_merged and not (eps is None):
-                sig = schematisation.get_merged_extremes(sig, signal1, eps)
+                dff = schematisation.get_merged_extremes(dff, signal1, eps)
             else:
-                sig = schematisation.get_extremes(sig, signal1)
-            cycles = schematisation.pick_cycles_as_df(sig, signal1)
+                dff = schematisation.get_extremes(dff, signal1)
+            cycles_numbers = schematisation.pick_cycles_point_number_as_df(dff, signal1)
+            cycles = schematisation.calc_cycles_parameters_by_numbers(dff, signal1, cycles_numbers, traces, dt_max)
             if m is None:
                 pass
             else:
                 if code == 'MM':
-                    dff = schematisation.correlation_table(cycles, 'Max', 'Min', class_min, class_max, m)
-                if code == 'MR':
-                    dff = schematisation.correlation_table(cycles, 'Range', 'Mean', class_min, class_max, m)
+                    tbls = schematisation.correlation_table_with_traces(cycles, 'Max', 'Min', traces, class_min,
+                                                                        class_max, m)
 
-        csv_string = dff.to_csv(index=True, encoding='utf-8')
-        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-        return [csv_string, False]
+                if code == 'MR':
+                    tbls = schematisation.correlation_table_with_traces(cycles, 'Mean', 'Range', traces, class_min,
+                                                                        class_max, m)
+                # collect all tables to list
+                data = [tbls[0].to_json(date_format='iso', orient='split')]
+                for i in range(len(traces)):
+                    data.append(tbls[1][i].to_json(date_format='iso', orient='split'))
+                dff = pd.DataFrame(data, columns=[code], index=['cycles'] + traces)
+                csv_string = dff.to_csv(index=True, encoding='utf-8')
+                csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+                return [csv_string, False]
     # change something
     return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
@@ -1670,19 +1682,22 @@ def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t
               Output('cut1_input', 'max'),
               Output('cut2', 'max'),
               Output('cut2_input', 'max'),
+              Output('estimation', 'options'),
+              Output('corr_code', 'value'),
               Input('upload_tables', 'contents'),
               State('upload_tables', 'filename'))
 def upload_file(contents, filenames):
-    df = pd.DataFrame()
+    data = {}
     nm = ''
-    rows = 3
+    classes = 3
+    options = []
+    code = 'MM'
     if contents:
-        df = loaddata.load_and_ave_set(filenames)
-        rows, _ = df.shape
+        data, code, opts, classes = loaddata.load_and_ave_set(filenames)
         nm = loaddata.load_files(filenames)
-
-    return [df.to_json(date_format='iso', orient='split'),
-            nm, rows, rows, rows, rows]
+        options = get_options(opts)
+    return [json.dumps(data, indent=0),
+            nm, classes, classes, classes, classes, options, code]
 
 
 @app.callback(Output('distribution', 'figure'),
@@ -1690,6 +1705,7 @@ def upload_file(contents, filenames):
               Output('cut1_input', 'value'),
               Output('cut2', 'value'),
               Output('cut2_input', 'value'),
+              Input('estimation', 'value'),
               Input('graph_width5', 'value'),
               Input('graph_height5', 'value'),
               Input('cut1', 'value'),
@@ -1699,7 +1715,7 @@ def upload_file(contents, filenames):
               Input('loading_corr', 'children'),
               Input('distribution', 'clickData'),
               Input('corr_code', 'value'))
-def update_graph(graph_width, graph_height, cut1, cut1_input, cut2, cut2_input,  loading_data, click_data, code):
+def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_input, loading_data, click_data, code):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -1717,68 +1733,63 @@ def update_graph(graph_width, graph_height, cut1, cut1_input, cut2, cut2_input, 
     if trigger_id == 'cut2_input':
         new_cut2 = cut2_input
 
-
-
     if code == 'MM':
         x_title = 'Min'
         y_title = 'Max'
     else:
-        x_title = 'Mean'
-        y_title = 'Range'
+        x_title = 'Range'
+        y_title = 'Mean'
 
-    fig = make_subplots(
-        rows=2, cols=2,
-        specs=[[{"rowspan": 2}, {}],
-               [None, {}]],
-        subplot_titles=("Correlation Table", "Cycles Count", "Cycles Count"), horizontal_spacing=0.25)
-    df = pd.read_json(loading_data, orient='split')
-    if df.empty:
+    fig = go.Figure()
+    if key is None:
         pass
     else:
-        rows, cols = df.shape
-        hist1_data = df.index[cut1 - 1]
-        hist2_data = df.columns[cut2 - 1]
-        if trigger_id == 'distribution':
-            hist1_data = click_data['points'][0]['y']
-            hist2_data = click_data['points'][0]['x']
-            new_cut1 = df.index.get_loc(hist1_data)
-            new_input1 = new_cut1
-            new_cut2 = df.columns.get_loc(hist2_data)
-            new_input2 = new_cut2
+        fig = make_subplots(
+            rows=2, cols=2,
+            specs=[[{"rowspan": 2}, {}],
+                   [None, {}]],
+            subplot_titles=("Correlation Table", key, key), horizontal_spacing=0.25)
+        data = json.loads(loading_data)
+        df = pd.read_json(data[key], orient='split')
+        if df.empty:
+            pass
+        else:
+            rows, cols = df.shape
+            hist1_data = df.index[cut1 - 1]
+            hist2_data = df.columns[cut2 - 1]
+            if trigger_id == 'distribution':
+                hist1_data = click_data['points'][0]['y']
+                hist2_data = click_data['points'][0]['x']
+                new_cut1 = df.index.get_loc(hist1_data)
+                new_input1 = new_cut1
+                new_cut2 = df.columns.get_loc(hist2_data)
+                new_input2 = new_cut2
 
-        if rows * cols > 0:
-            hist1 = df.loc[hist1_data].to_numpy()
-            hist2 = df[hist2_data].to_numpy()
+            if rows * cols > 0:
+                hist1 = df.loc[hist1_data].to_numpy()
+                hist2 = df[hist2_data].to_numpy()
 
-            print('hist1={}'.format(hist1))
-            print('hist2={}'.format(hist2))
-            classes = np.linspace(1, rows, rows)
-            fig.add_trace(go.Heatmap(x=df.columns, y=df.index, z=df.values, colorscale='gnbu', colorbar=dict(x=0.395)),
-                          row=1, col=1)
-            fig.add_trace(go.Bar(x=classes, y=hist1, marker_color='rgb(8,64,129)',
-                                 name=y_title + '=' + str(new_cut1 + 1)),
-                          row=1, col=2)
-            fig.add_trace(go.Bar(x=classes, y=hist2, marker_color='rgb(153,215,186)',
-                                 name=x_title + '=' + str(new_cut2 + 1)),
-                          row=2, col=2)
+                # print('hist1={}'.format(hist1))
+                # print('hist2={}'.format(hist2))
+                classes = np.linspace(1, rows, rows)
+                fig.add_trace(go.Heatmap(x=df.columns, y=df.index, z=df.values, colorscale='gnbu',
+                                         colorbar=dict(x=0.395)),
+                              row=1, col=1)
+                fig.add_trace(go.Bar(x=classes, y=hist1, marker_color='rgb(8,64,129)',
+                                     name=y_title + '=' + str(new_cut1 + 1)),
+                              row=1, col=2)
+                fig.add_trace(go.Bar(x=classes, y=hist2, marker_color='rgb(153,215,186)',
+                                     name=x_title + '=' + str(new_cut2 + 1)),
+                              row=2, col=2)
 
-    fig.update_layout(xaxis={'title': x_title},
-                      yaxis={'title': y_title},
-                      margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                      hovermode='closest', clickmode='event',
-                      width=150 * graph_width, height=100 * graph_height,
-                      plot_bgcolor='rgb(247,252,240)')
+        fig.update_layout(xaxis={'title': x_title},
+                          yaxis={'title': y_title},
+                          margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                          hovermode='closest', clickmode='event',
+                          width=150 * graph_width, height=100 * graph_height,
+                          plot_bgcolor='rgb(247,252,240)')
 
     return [fig, new_cut1, new_input1, new_cut2, new_input2]
-
-
-@app.callback(Output('corr_code', 'value'),
-              Input('corr_table_code', 'value'))
-def connect_corr_codes(code):
-    return code
-
-
-
 
 
 if __name__ == '__main__':
