@@ -2,6 +2,7 @@ import pandas as pd
 
 
 def load_and_ave_set(names):
+    print(names)
     if names is None:
         return [{}, None, [], 1.0]
     if len(names) == 0:
