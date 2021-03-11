@@ -34,6 +34,7 @@ def mark(i):
 def load_and_ave_set(names):
     print(names)
     print(print(os.getcwd()))
+    print(os.listdir(os.curdir))
     cd = os.getcwd()+ "/"
     if names is None:
         return [{}, None, [], 1.0]
