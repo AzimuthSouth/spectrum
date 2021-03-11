@@ -893,8 +893,7 @@ def set_frequency_est(sldr, inpt):
               Output('dt_max_input', 'value'),
               Input('dt_max', 'value'),
               Input('dt_max_input', 'value'),
-              Input('t_start', 'step')
-              )
+              Input('t_start', 'step'))
 def set_dt_max(sldr, inpt, dt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -977,23 +976,18 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
 
     data = []
     if signal_1:
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
+        dff = loaddata.select_dff_by_time(loading_data, val1, val2, dt)
+        cols = dff.columns
         for yy in signal_1:
-            sig = dff[[cols[0], yy]]
-            # print(sig)
-
-            data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode=gmode, name=yy))
+            data.append(go.Scatter(x=dff[cols[0]], y=dff[yy], mode=gmode, name=yy))
 
             if 'SM' in signal_filter:
-                sig = prepare.smoothing_symm(sig, yy, k, 1)
-                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode=gmode, name='smooth'))
+                dff = prepare.smoothing_symm(dff, yy, k, 1)
+                data.append(go.Scatter(x=dff[cols[0]], y=dff[yy], mode=gmode, name='smooth'))
 
             if 'HW' in signal_filter:
-                sig = prepare.correction_hann(sig, yy)
-                data.append(go.Scatter(x=sig[cols[0]], y=sig[yy], mode=gmode, name='hann_correction'))
+                dff = prepare.correction_hann(dff, yy)
+                data.append(go.Scatter(x=dff[cols[0]], y=dff[yy], mode=gmode, name='hann_correction'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Input'},
@@ -1004,53 +998,6 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
     fig = go.Figure(data=data, layout=layout)
 
     return [fig, [val1, val2], val1, val2]
-
-
-@app.callback(Output('link-signals', 'href'),
-              Output('link-signals', 'hidden'),
-              Input('all_signal', 'value'),
-              Input('pick_signals', 'n_clicks'),
-              Input('signal_1', 'value'),
-              Input('signal_filter', 'value'),
-              Input('smoothing_window', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
-              State('loading_data', 'children'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'))
-def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
-                  t_start, t_end, loading_data, t_min, t_max, t_step):
-    ctx = dash.callback_context
-    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    # button click
-    if triggered_id == 'pick_signals':
-        dff = pd.DataFrame()
-        # set time range if None
-        val1 = t_min if t_start is None else t_start
-        val2 = t_max if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        if not (loading_data is None):
-            df = pd.read_json(loading_data, orient='split')
-            if not df.empty:
-                cols = df.columns
-                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-                dff.reset_index(drop=True, inplace=True)
-                export_cols = cols
-                if all_check is None or all_check == []:
-                    dff = dff[[cols[0]] + yy]
-                    export_cols = yy
-                # request smoothing signals
-                if 'SM' in signal_filter:
-                    dff = prepare.set_smoothing_symm(dff, export_cols, smoothing, 1)
-                if 'HW' in signal_filter:
-                    dff = prepare.set_correction_hann(dff, export_cols)
-
-        csv_string = dff.to_csv(index=False, encoding='utf-8')
-        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-        return [csv_string, False]
-    # changing
-    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
 @app.callback(Output('spectrum_graph', 'figure'),
@@ -1076,28 +1023,18 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
 
     if spectrum_1 and spectrum_2:
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
-        sig1 = dff[[cols[0], spectrum_1]]
-        sig2 = dff[[cols[0], spectrum_2]]
+        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
         hann_koef = 1.0
 
-        if 'SM' in spectrum_filter:
-            sig1 = prepare.smoothing_symm(sig1, spectrum_1, k, 1)
-            sig2 = prepare.smoothing_symm(sig2, spectrum_2, k, 1)
+        if 'SM' in spectrum_filter and not (k is None):
+            dff = prepare.set_smoothing_symm(dff, [spectrum_1, spectrum_2], k, 1)
 
         if 'HW' in spectrum_filter:
-            sig1 = prepare.correction_hann(sig1, spectrum_1)
-            sig2 = prepare.correction_hann(sig2, spectrum_2)
+            dff = prepare.set_correction_hann(dff, [spectrum_1, spectrum_2])
             hann_koef = 8.0 / 3
 
-        trp = prepare.calc_time_range(df[cols[0]].to_numpy())
-        f, g_xy = signal.csd(sig1[spectrum_1], sig2[spectrum_2], (1.0 / trp[2]), window="boxcar", nperseg=len(sig1))
+        rows, _ = dff.shape
+        f, g_xy = signal.csd(dff[spectrum_1], dff[spectrum_2], (1.0 / t_step), window="boxcar", nperseg=rows)
         mod, phase = analyse.cross_spectrum_mod_fas(g_xy)
         mod *= hann_koef
 
@@ -1113,6 +1050,49 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
         fig.update_xaxes(title_text="Frequencies", row=1, col=1)
         fig.update_yaxes(title_text="Power Spectral Density", row=1, col=1)
     fig.update_layout(width=150 * graph_width, height=100 * graph_height)
+    return fig
+
+
+@app.callback(Output('coherence_graph', 'figure'),
+              # Output('inspection', 'children'),
+              Input('coherence_1', 'value'),
+              Input('coherence_2', 'value'),
+              Input('coherence_filter', 'value'),
+              Input('smoothing_window_coherence', 'value'),
+              Input('segment_len', 'value'),
+              Input('graph_width2', 'value'),
+              Input('graph_height2', 'value'),
+              Input('coherence_lines', 'value'),
+              State('t_start', 'value'),
+              State('t_end', 'value'),
+              State('t_start', 'step'),
+              State('loading_data', 'children'))
+def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, graph_width, graph_height,
+                 mode, t_start, t_end, t_step, loading_data):
+    data = []
+    gmode = 'lines+markers' if mode == 'LM' else 'lines'
+    if coherence_1 and coherence_2:
+        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+
+        if 'SM' in coherence_filter and not (k is None):
+            dff = prepare.set_smoothing_symm(dff, [coherence_1, coherence_2], k, 1)
+
+        if 'HW' in coherence_filter:
+            dff = prepare.set_correction_hann(dff, [coherence_1, coherence_2])
+
+        f, c_xx = signal.coherence(dff[coherence_1], dff[coherence_2],
+                                   (1.0 / t_step), window="boxcar", nperseg=segment_len)
+
+        data.append(go.Scatter(x=f, y=c_xx, mode=gmode, name='coherence'))
+
+    layout = go.Layout(xaxis={'title': 'Frequencies'},
+                       yaxis={'title': 'Coherence'},
+                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                       hovermode='closest',
+                       width=150 * graph_width, height=100 * graph_height)
+
+    fig = go.Figure(data=data, layout=layout)
+
     return fig
 
 
@@ -1135,13 +1115,8 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
     if signal1:
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
+        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+        cols = dff.columns
         if schem_filter == 'SM' and not (k is None):
             dff = prepare.smoothing_symm(dff, signal1, k, 1)
 
@@ -1155,7 +1130,7 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
 
         if 'MG' in is_merged and not (eps is None):
             dff = schematisation.get_merged_extremes(dff, signal1, eps)
-            if 'MG' in schem_sigs and not (eps is None):
+            if 'MG' in schem_sigs:
                 data.append(go.Scatter(x=dff[cols[0]], y=dff[signal1], mode=gmode, name='merge'))
 
     layout = go.Layout(xaxis={'title': 'Time'},
@@ -1166,18 +1141,6 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
 
     fig = go.Figure(data=data, layout=layout)
     return fig
-
-
-@app.callback(Output('schem_sigs', 'value'),
-              Input('schem_sigs_prepare', 'value'),
-              State('schem_sigs', 'value'))
-def not_draw_merge(is_merged, sigs):
-    current_sigs = sigs
-    if 'MG' in is_merged:
-        current_sigs.append('MG')
-    else:
-        current_sigs = [x for x in sigs if x != 'MG']
-    return current_sigs
 
 
 @app.callback(Output('table_map', 'figure'),
@@ -1204,13 +1167,7 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
     x_title = ''
     y_title = ''
     if signal1:
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
+        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
         if schem_filter == 'SM' and not (k is None):
             dff = prepare.smoothing_symm(dff, signal1, k, 1)
         if 'MG' in is_merged and not (eps is None):
@@ -1225,12 +1182,14 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
         else:
             if code == 'MM':
                 tbl = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', mmin_set1=class_min,
-                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
+                                                                     mmax_set1=class_max, mmin_set2=class_min2,
+                                                                     mmax_set2=class_max2, count=m)
                 x_title = 'Min'
                 y_title = 'Max'
             if code == 'MR':
                 tbl = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', mmin_set1=class_min,
-                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
+                                                                     mmax_set1=class_max, mmin_set2=class_min2,
+                                                                     mmax_set2=class_max2, count=m)
                 x_title = 'Range'
                 y_title = 'Mean'
 
@@ -1268,7 +1227,7 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
               State('t_start', 'step'),
               State('loading_data', 'children'))
 def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph_height, eps, dt_max,
-                 class_min, class_max,class_min2, class_max2, m, code, t_start, t_end, t_step, loading_data):
+                 class_min, class_max, class_min2, class_max2, m, code, t_start, t_end, t_step, loading_data):
     fig = go.Figure()
     x_title = ''
     y_title = ''
@@ -1280,13 +1239,7 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
         tbls = [pd.DataFrame() for i in range(len(traces))]
         fig = make_subplots(rows=1, cols=len(traces), subplot_titles=traces, horizontal_spacing=0.25)
         if signal1:
-            df = pd.read_json(loading_data, orient='split')
-            cols = df.columns
-            val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-            val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-            dt = 0.0 if t_step is None else t_step / 2
-            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-            dff.reset_index(drop=True, inplace=True)
+            dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
             if schem_filter == 'SM' and not (k is None):
                 dff = prepare.smoothing_symm(dff, signal1, k, 1)
             if 'MG' in is_merged and not (eps is None):
@@ -1299,13 +1252,17 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
                 pass
             else:
                 if code == 'MM':
-                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', traces, mmin_set1=class_min,
-                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', traces,
+                                                                          mmin_set1=class_min,
+                                                                          mmax_set1=class_max, mmin_set2=class_min2,
+                                                                          mmax_set2=class_max2, count=m)
                     x_title = 'Min'
                     y_title = 'Max'
                 if code == 'MR':
-                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces, mmin_set1=class_min,
-                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces,
+                                                                          mmin_set1=class_min,
+                                                                          mmax_set1=class_max, mmin_set2=class_min2,
+                                                                          mmax_set2=class_max2, count=m)
                     x_title = 'Range'
                     y_title = 'Mean'
             x_pos = {1: [1.02], 2: [0.395, 1.02]}
@@ -1325,18 +1282,219 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
     return fig
 
 
-@app.callback(Output('graph_width6', 'value'),
-              Output('graph_height6', 'value'),
-              Input('traces', 'value'),
-              State('graph_width6', 'value'),
-              State('graph_height6', 'value'))
-def set_graph_size(traces, w, h):
-    if traces is None:
-        return [w, h]
-    elif len(traces) == 1:
-        return [4, 6]
+@app.callback(Output('distribution', 'figure'),
+              Output('cut1', 'value'),
+              Output('cut1_input', 'value'),
+              Output('cut2', 'value'),
+              Output('cut2_input', 'value'),
+              Input('estimation', 'value'),
+              Input('graph_width5', 'value'),
+              Input('graph_height5', 'value'),
+              Input('cut1', 'value'),
+              Input('cut1_input', 'value'),
+              Input('cut2', 'value'),
+              Input('cut2_input', 'value'),
+              Input('loading_corr', 'children'),
+              Input('distribution', 'clickData'),
+              Input('corr_code', 'value'))
+def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_input, loading_data, click_data, code):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    new_cut1 = cut1
+    new_input1 = cut1_input
+    new_cut2 = cut2
+    new_input2 = cut2_input
+
+    if trigger_id == 'cut1':
+        new_input1 = cut1
+    if trigger_id == 'cut1_input':
+        new_cut1 = cut1_input
+    if trigger_id == 'cut2':
+        new_input2 = cut2
+    if trigger_id == 'cut2_input':
+        new_cut2 = cut2_input
+
+    if code == 'MM':
+        x_title = 'Min'
+        y_title = 'Max'
     else:
-        return [9, 6]
+        x_title = 'Range'
+        y_title = 'Mean'
+
+    fig = go.Figure()
+    if key is None:
+        pass
+    else:
+        fig = make_subplots(
+            rows=2, cols=2,
+            specs=[[{"rowspan": 2}, {}],
+                   [None, {}]],
+            subplot_titles=("Correlation Table", key, key), horizontal_spacing=0.25)
+        data = json.loads(loading_data)
+        df = pd.read_json(data[key], orient='split')
+        if df.empty:
+            pass
+        else:
+            rows, cols = df.shape
+            hist1_data = df.index[cut1 - 1]
+            hist2_data = df.columns[cut2 - 1]
+            if trigger_id == 'distribution':
+                hist1_data = click_data['points'][0]['y']
+                hist2_data = click_data['points'][0]['x']
+                new_cut1 = df.index.get_loc(hist1_data)
+                new_input1 = new_cut1
+                new_cut2 = df.columns.get_loc(hist2_data)
+                new_input2 = new_cut2
+
+            if rows * cols > 0:
+                hist1 = df.loc[hist1_data].to_numpy()
+                hist2 = df[hist2_data].to_numpy()
+
+                # print('hist1={}'.format(hist1))
+                # print('hist2={}'.format(hist2))
+                classes = np.linspace(1, rows, rows)
+                fig.add_trace(go.Heatmap(x=df.columns, y=df.index, z=df.values, colorscale='gnbu',
+                                         colorbar=dict(x=0.395)),
+                              row=1, col=1)
+                fig.add_trace(go.Bar(x=classes, y=hist1, marker_color='rgb(8,64,129)',
+                                     name=y_title + '=' + str(new_cut1 + 1)),
+                              row=1, col=2)
+                fig.add_trace(go.Bar(x=classes, y=hist2, marker_color='rgb(153,215,186)',
+                                     name=x_title + '=' + str(new_cut2 + 1)),
+                              row=2, col=2)
+
+        fig.update_layout(xaxis={'title': x_title},
+                          yaxis={'title': y_title},
+                          margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                          hovermode='closest', clickmode='event',
+                          width=150 * graph_width, height=100 * graph_height,
+                          plot_bgcolor='rgb(247,252,240)')
+        fig.update_xaxes(tickangle=-90)
+
+    return [fig, new_cut1, new_input1, new_cut2, new_input2]
+
+
+@app.callback(Output('link-signals', 'href'),
+              Output('link-signals', 'hidden'),
+              Input('all_signal', 'value'),
+              Input('pick_signals', 'n_clicks'),
+              Input('signal_1', 'value'),
+              Input('signal_filter', 'value'),
+              Input('smoothing_window', 'value'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'step'))
+def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
+                  t_start, t_end, loading_data, t_step):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_signals':
+        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+        export_cols = dff.columns
+        if all_check is None or all_check == []:
+            dff = dff[[dff.columns[0]] + yy]
+            export_cols = yy
+        # request smoothing signals
+        if 'SM' in signal_filter:
+            dff = prepare.set_smoothing_symm(dff, export_cols, smoothing, 1)
+        if 'HW' in signal_filter:
+            dff = prepare.set_correction_hann(dff, export_cols)
+
+        csv_string = dff.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    # change
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
+@app.callback(Output('link-spectrum', 'href'),
+              Output('link-spectrum', 'hidden'),
+              Input('all_spectrum', 'value'),
+              Input('pick_spectrum', 'n_clicks'),
+              Input('spectrum_1', 'value'),
+              Input('spectrum_2', 'value'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              Input('spectrum_filter', 'value'),
+              Input('smoothing_window_spectrum', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'min'),
+              State('t_start', 'max'),
+              State('t_start', 'step'))
+def export_cross_spectrum(all_checked, n_clicks, spectrum_1, spectrum_2, t_start, t_end, spectrum_filter, k,
+                          loading_data, t_min, t_max, t_step):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_spectrum':
+        dfres = pd.DataFrame()
+        # set time range if None
+        val1 = t_min if t_start is None else t_start
+        val2 = t_max if t_end is None else t_end
+        dt = 0.0 if t_step is None else t_step / 2
+        smoothing = k if 'SM' in spectrum_filter else -1
+        win = "hann" if 'HW' in spectrum_filter else "boxcar"
+        if not (loading_data is None):
+            df = pd.read_json(loading_data, orient='split')
+            if not df.empty:
+                cols = df.columns
+                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+                dff.reset_index(drop=True, inplace=True)
+                if all_checked is None or all_checked == []:
+                    dfres = pipeline.calc_signals_cross_spectrum(dff, spectrum_1, spectrum_2, smoothing, win)
+                else:
+                    dfres = pipeline.calc_set_of_signals_cross_spectrum(dff, smoothing, win)
+        csv_string = dfres.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
+@app.callback(Output('link-coherence', 'href'),
+              Output('link-coherence', 'hidden'),
+              Input('all_coherence', 'value'),
+              Input('pick_coherence', 'n_clicks'),
+              Input('coherence_1', 'value'),
+              Input('coherence_2', 'value'),
+              Input('t_start', 'value'),
+              Input('t_end', 'value'),
+              Input('coherence_filter', 'value'),
+              Input('smoothing_window_coherence', 'value'),
+              Input('segment_len', 'value'),
+              State('loading_data', 'children'),
+              State('t_start', 'min'),
+              State('t_start', 'max'),
+              State('t_start', 'step'))
+def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t_end, spectrum_filter,
+                     k, npseg, loading_data, t_min, t_max, t_step):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_coherence':
+        dfres = pd.DataFrame()
+        # set time range if None
+        val1 = t_min if t_start is None else t_start
+        val2 = t_max if t_end is None else t_end
+        dt = 0.0 if t_step is None else t_step / 2
+        smoothing = k if 'SM' in spectrum_filter else -1
+        win = "hann" if 'HW' in spectrum_filter else "boxcar"
+        if loading_data:
+            df = pd.read_json(loading_data, orient='split')
+            if not df.empty:
+                cols = df.columns
+                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+                dff.reset_index(drop=True, inplace=True)
+                if all_checked is None or all_checked == []:
+                    dfres = pipeline.calc_signals_coherence(dff, coherence_1, coherence_2, smoothing, win, npseg)
+                else:
+                    dfres = pipeline.calc_set_of_signals_coherence(dff, smoothing, win, npseg)
+        csv_string = dfres.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
 @app.callback(Output('link-cycles', 'href'),
@@ -1429,22 +1587,40 @@ def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_
                 pass
             else:
                 if code == 'MM':
-                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', traces, mmin_set1=class_min,
-                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', traces,
+                                                                          mmin_set1=class_min,
+                                                                          mmax_set1=class_max, mmin_set2=class_min2,
+                                                                          mmax_set2=class_max2, count=m)
 
                 if code == 'MR':
-                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces, mmin_set1=class_min,
-                                mmax_set1=class_max, mmin_set2=class_min2, mmax_set2=class_max2, count=m)
+                    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces,
+                                                                          mmin_set1=class_min,
+                                                                          mmax_set1=class_max, mmin_set2=class_min2,
+                                                                          mmax_set2=class_max2, count=m)
                 # collect all tables to list
                 data = [tbls[0].to_json(date_format='iso', orient='split')]
                 for i in range(len(traces)):
                     data.append(tbls[1][i].to_json(date_format='iso', orient='split'))
                 dff = pd.DataFrame(data, columns=[code], index=['cycles'] + traces)
-                csv_string = dff.to_csv(index=True, encoding='utf-8')
-                csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-                return [csv_string, False]
+        csv_string = dff.to_csv(index=True, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
     # change something
     return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
+@app.callback(Output('graph_width6', 'value'),
+              Output('graph_height6', 'value'),
+              Input('traces', 'value'),
+              State('graph_width6', 'value'),
+              State('graph_height6', 'value'))
+def set_graph_size(traces, w, h):
+    if traces is None:
+        return [w, h]
+    elif len(traces) == 1:
+        return [4, 6]
+    else:
+        return [9, 6]
 
 
 @app.callback(Output('input_stats', 'children'),
@@ -1554,147 +1730,6 @@ def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, 
     return [current_slider, current_inpt, current_range, current_sigs]
 
 
-@app.callback(Output('link-spectrum', 'href'),
-              Output('link-spectrum', 'hidden'),
-              Input('all_spectrum', 'value'),
-              Input('pick_spectrum', 'n_clicks'),
-              Input('spectrum_1', 'value'),
-              Input('spectrum_2', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
-              Input('spectrum_filter', 'value'),
-              Input('smoothing_window_spectrum', 'value'),
-              State('loading_data', 'children'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'))
-def export_cross_spectrum(all_checked, n_clicks, spectrum_1, spectrum_2, t_start, t_end, spectrum_filter, k,
-                          loading_data, t_min, t_max, t_step):
-    ctx = dash.callback_context
-    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    # button click
-    if triggered_id == 'pick_spectrum':
-        dfres = pd.DataFrame()
-        # set time range if None
-        val1 = t_min if t_start is None else t_start
-        val2 = t_max if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        smoothing = k if 'SM' in spectrum_filter else -1
-        win = "hann" if 'HW' in spectrum_filter else "boxcar"
-        if not (loading_data is None):
-            df = pd.read_json(loading_data, orient='split')
-            if not df.empty:
-                cols = df.columns
-                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-                dff.reset_index(drop=True, inplace=True)
-                if all_checked is None or all_checked == []:
-                    dfres = pipeline.calc_signals_cross_spectrum(dff, spectrum_1, spectrum_2, smoothing, win)
-                else:
-                    dfres = pipeline.calc_set_of_signals_cross_spectrum(dff, smoothing, win)
-        csv_string = dfres.to_csv(index=False, encoding='utf-8')
-        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-        return [csv_string, False]
-    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
-
-
-@app.callback(Output('coherence_graph', 'figure'),
-              # Output('inspection', 'children'),
-              Input('coherence_1', 'value'),
-              Input('coherence_2', 'value'),
-              Input('coherence_filter', 'value'),
-              Input('smoothing_window_coherence', 'value'),
-              Input('segment_len', 'value'),
-              Input('graph_width2', 'value'),
-              Input('graph_height2', 'value'),
-              Input('coherence_lines', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
-              State('loading_data', 'children'))
-def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, graph_width, graph_height,
-                 mode, t_start, t_end, t_step, loading_data):
-    data = []
-    if coherence_1 and coherence_2:
-        gmode = 'lines+markers' if mode == 'LM' else 'lines'
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
-        sig1 = dff[[cols[0], coherence_1]]
-        sig2 = dff[[cols[0], coherence_2]]
-
-        if 'SM' in coherence_filter:
-            sig1 = prepare.smoothing_symm(sig1, coherence_1, k, 1)
-            sig2 = prepare.smoothing_symm(sig2, coherence_2, k, 1)
-
-        if 'HW' in coherence_filter:
-            sig1 = prepare.correction_hann(sig1, coherence_1)
-            sig2 = prepare.correction_hann(sig2, coherence_2)
-
-        trp = prepare.calc_time_range(df[cols[0]].to_numpy())
-        f, c_xx = signal.coherence(sig1[coherence_1], sig2[coherence_2],
-                                   (1.0 / trp[2]), window="boxcar", nperseg=segment_len)
-
-        data.append(go.Scatter(x=f, y=c_xx, mode=gmode, name='coherence'))
-
-    layout = go.Layout(xaxis={'title': 'Frequencies'},
-                       yaxis={'title': 'Coherence'},
-                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                       hovermode='closest',
-                       width=150 * graph_width, height=100 * graph_height)
-
-    fig = go.Figure(data=data, layout=layout)
-
-    return fig
-
-
-@app.callback(Output('link-coherence', 'href'),
-              Output('link-coherence', 'hidden'),
-              Input('all_coherence', 'value'),
-              Input('pick_coherence', 'n_clicks'),
-              Input('coherence_1', 'value'),
-              Input('coherence_2', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
-              Input('coherence_filter', 'value'),
-              Input('smoothing_window_coherence', 'value'),
-              Input('segment_len', 'value'),
-              State('loading_data', 'children'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'))
-def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t_end, spectrum_filter,
-                     k, npseg, loading_data, t_min, t_max, t_step):
-    ctx = dash.callback_context
-    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    # button click
-    if triggered_id == 'pick_coherence':
-        dfres = pd.DataFrame()
-        # set time range if None
-        val1 = t_min if t_start is None else t_start
-        val2 = t_max if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        smoothing = k if 'SM' in spectrum_filter else -1
-        win = "hann" if 'HW' in spectrum_filter else "boxcar"
-        if loading_data:
-            df = pd.read_json(loading_data, orient='split')
-            if not df.empty:
-                cols = df.columns
-                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-                dff.reset_index(drop=True, inplace=True)
-                if all_checked is None or all_checked == []:
-                    dfres = pipeline.calc_signals_coherence(dff, coherence_1, coherence_2, smoothing, win, npseg)
-                else:
-                    dfres = pipeline.calc_set_of_signals_coherence(dff, smoothing, win, npseg)
-        csv_string = dfres.to_csv(index=False, encoding='utf-8')
-        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
-        return [csv_string, False]
-    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
-
-
 @app.callback(Output('loading_corr', 'children'),
               Output('filenames', 'children'),
               Output('cut1', 'max'),
@@ -1719,98 +1754,6 @@ def upload_file(contents, filenames):
             nm, classes, classes, classes, classes, options, code]
 
 
-@app.callback(Output('distribution', 'figure'),
-              Output('cut1', 'value'),
-              Output('cut1_input', 'value'),
-              Output('cut2', 'value'),
-              Output('cut2_input', 'value'),
-              Input('estimation', 'value'),
-              Input('graph_width5', 'value'),
-              Input('graph_height5', 'value'),
-              Input('cut1', 'value'),
-              Input('cut1_input', 'value'),
-              Input('cut2', 'value'),
-              Input('cut2_input', 'value'),
-              Input('loading_corr', 'children'),
-              Input('distribution', 'clickData'),
-              Input('corr_code', 'value'))
-def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_input, loading_data, click_data, code):
-    ctx = dash.callback_context
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-
-    new_cut1 = cut1
-    new_input1 = cut1_input
-    new_cut2 = cut2
-    new_input2 = cut2_input
-
-    if trigger_id == 'cut1':
-        new_input1 = cut1
-    if trigger_id == 'cut1_input':
-        new_cut1 = cut1_input
-    if trigger_id == 'cut2':
-        new_input2 = cut2
-    if trigger_id == 'cut2_input':
-        new_cut2 = cut2_input
-
-    if code == 'MM':
-        x_title = 'Min'
-        y_title = 'Max'
-    else:
-        x_title = 'Range'
-        y_title = 'Mean'
-
-    fig = go.Figure()
-    if key is None:
-        pass
-    else:
-        fig = make_subplots(
-            rows=2, cols=2,
-            specs=[[{"rowspan": 2}, {}],
-                   [None, {}]],
-            subplot_titles=("Correlation Table", key, key), horizontal_spacing=0.25)
-        data = json.loads(loading_data)
-        df = pd.read_json(data[key], orient='split')
-        if df.empty:
-            pass
-        else:
-            rows, cols = df.shape
-            hist1_data = df.index[cut1 - 1]
-            hist2_data = df.columns[cut2 - 1]
-            if trigger_id == 'distribution':
-                hist1_data = click_data['points'][0]['y']
-                hist2_data = click_data['points'][0]['x']
-                new_cut1 = df.index.get_loc(hist1_data)
-                new_input1 = new_cut1
-                new_cut2 = df.columns.get_loc(hist2_data)
-                new_input2 = new_cut2
-
-            if rows * cols > 0:
-                hist1 = df.loc[hist1_data].to_numpy()
-                hist2 = df[hist2_data].to_numpy()
-
-                # print('hist1={}'.format(hist1))
-                # print('hist2={}'.format(hist2))
-                classes = np.linspace(1, rows, rows)
-                fig.add_trace(go.Heatmap(x=df.columns, y=df.index, z=df.values, colorscale='gnbu',
-                                         colorbar=dict(x=0.395)),
-                              row=1, col=1)
-                fig.add_trace(go.Bar(x=classes, y=hist1, marker_color='rgb(8,64,129)',
-                                     name=y_title + '=' + str(new_cut1 + 1)),
-                              row=1, col=2)
-                fig.add_trace(go.Bar(x=classes, y=hist2, marker_color='rgb(153,215,186)',
-                                     name=x_title + '=' + str(new_cut2 + 1)),
-                              row=2, col=2)
-
-        fig.update_layout(xaxis={'title': x_title},
-                          yaxis={'title': y_title},
-                          margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
-                          hovermode='closest', clickmode='event',
-                          width=150 * graph_width, height=100 * graph_height,
-                          plot_bgcolor='rgb(247,252,240)')
-        fig.update_xaxes(tickangle=-90)
-
-    return [fig, new_cut1, new_input1, new_cut2, new_input2]
-
 @app.callback(Output('range1', 'children'),
               Output('range2', 'children'),
               Input('corr_table_code', 'value'))
@@ -1819,6 +1762,18 @@ def update_labels(code):
         return ['max', 'min']
     else:
         return ['mean', 'range']
+
+
+@app.callback(Output('schem_sigs', 'value'),
+              Input('schem_sigs_prepare', 'value'),
+              State('schem_sigs', 'value'))
+def not_draw_merge(is_merged, sigs):
+    current_sigs = sigs
+    if 'MG' in is_merged:
+        current_sigs.append('MG')
+    else:
+        current_sigs = [x for x in sigs if x != 'MG']
+    return current_sigs
 
 
 if __name__ == '__main__':

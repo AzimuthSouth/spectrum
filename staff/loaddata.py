@@ -45,3 +45,14 @@ def load_files(names):
         s += name + ", "
     s += names[-1]
     return s
+
+
+def select_dff_by_time(json_data, t_start=None, t_end=None, t_step=None):
+    df = pd.read_json(json_data, orient='split')
+    cols = df.columns
+    val1 = df[cols[0]].iloc[0] if t_start is None else t_start
+    val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
+    dt = 0.0 if t_step is None else t_step / 2
+    dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
+    dff.reset_index(drop=True, inplace=True)
+    return dff

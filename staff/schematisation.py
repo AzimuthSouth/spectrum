@@ -495,7 +495,7 @@ def correlation_table_with_traces(cycles, name1, name2, traces_names=[], mmin_se
 
 
 def correlation_table_with_traces_2(cycles, name1, name2, traces_names=[], mmin_set1=None, mmax_set1=None,
-                                    mmin_set2 = None, mmax_set2 = None, count=10):
+                                    mmin_set2=None, mmax_set2=None, count=10):
     """
     Calc correlation table min-max or mean-range for loading input
     :param cycles: dataFrame with extracted half-cycles
@@ -503,8 +503,10 @@ def correlation_table_with_traces_2(cycles, name1, name2, traces_names=[], mmin_
     :param name1: variable 1 (min or mean)
     :param name2: variable 2 (max or range)
     :param traces_names: additional signals
-    :param mmin_set: classes minimum
-    :param mmax_set: classes maximum
+    :param mmin_set1: classes minimum
+    :param mmax_set1: classes maximum
+    :param mmin_set2: classes minimum
+    :param mmax_set2: classes maximum
     :return: dataFrame with correlation table
     """
     rows, _ = cycles.shape
