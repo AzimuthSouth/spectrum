@@ -33,15 +33,15 @@ def mark(i):
 
 def load_and_ave_set(names):
     print(names)
-    print(print(os.getcwd())
-)
+    print(print(os.getcwd()))
+    cd = os.getcwd()+ "/"
     if names is None:
         return [{}, None, [], 1.0]
     if len(names) == 0:
         return [{}, None, [], 1.0]
 
     # check if all codes are the same
-    codes = set([pd.read_csv(name, index_col=0).columns.tolist()[0] for name in names])
+    codes = set([pd.read_csv(cd + name, index_col=0).columns.tolist()[0] for name in names])
     if len(codes) != 1:
         return [{}, None, ["Different Codes!"], 1.0]
 
