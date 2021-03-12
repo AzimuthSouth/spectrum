@@ -1,19 +1,29 @@
 import pandas as pd
+import base64
+import io
 
 
-def load_and_ave_set(names):
-    print(names)
+def parse_data(contents, filename, index=None):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    df = pd.DataFrame()
+    if 'txt' in filename:
+        df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), index_col=index)
+    return df
+
+
+def load_and_ave_set(contents, names):
     if names is None:
         return [{}, None, [], 1.0]
     if len(names) == 0:
         return [{}, None, [], 1.0]
 
     # check if all codes are the same
-    codes = set([pd.read_csv(name, index_col=0).columns.tolist()[0] for name in names])
+    codes = set([parse_data(contents[i], names[i], index=0).columns.tolist()[0] for i in range(len(names))])
     if len(codes) != 1:
         return [{}, None, ["Different Codes!"], 1.0]
 
-    df = pd.read_csv(names[0], index_col=0)
+    df = parse_data(contents[0], names[0], index=0)
     code = df.columns.to_numpy()[0]
     options = df.index.tolist()
     # print('options={}'.format(options))
@@ -24,8 +34,8 @@ def load_and_ave_set(names):
         classes, _ = dfi.shape
         data[opt] = dfi
 
-    for name in names[1:]:
-        df = pd.read_csv(name, index_col=0)
+    for i in range(1, len(names)):
+        df = parse_data(contents[i], names[i], index=0)
         for opt in options:
             dfi = pd.read_json(df.loc[opt].values[0], orient='split')
             data[opt] += dfi
