@@ -17,8 +17,6 @@ from staff import loaddata
 import urllib
 import json
 import os
-print(os.getcwd())
-
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -30,6 +28,7 @@ def mark(i):
     if i % 10 == 0 or i == 1:
         return "{}%".format(i)
     return ''
+
 
 app.layout = html.Div([
     html.H4("Spectrum Analysis", style={'text-align': 'center'}),
@@ -98,20 +97,32 @@ app.layout = html.Div([
             html.Div([
                 dcc.Graph(id='input_graph', style={'width': '100%', 'height': '100%'}),
                 html.Div([
-                    dcc.Input(
-                        id='t_start',
-                        type='number'
-                    ),
-                    dcc.Input(
-                        id='t_end',
-                        type='number'
-                    ),
+
+                    # dcc.Input(
+                    #    id='t_start',
+                    #    type='number'
+                    # ),
+                    # dcc.Input(
+                    #    id='t_end',
+                    #    type='number'
+                    # ),
+                    html.Div(
+                        dcc.Dropdown(
+                            id='start_1',
+                            value=None
+                        ), style={'width': '20%'}),
+                    html.Div(
+                        dcc.Dropdown(
+                            id='end_1',
+                            value=None
+                        ), style={'width': '20%'})
 
                 ], style={'width': '100%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
 
                 html.Div([
                     dcc.RangeSlider(
                         id='time_range_slider',
+                        step=None,
                         allowCross=False
                     )
                 ]),
@@ -202,7 +213,7 @@ app.layout = html.Div([
                      ),
             html.Hr(),
             html.Button('Export spectrum', id='pick_spectrum'),
-            html.A('Export cross spectrum',
+            html.A('Export spectrum',
                    id='link-spectrum',
                    download="cross_spectrum.txt",
                    href="",
@@ -546,11 +557,13 @@ app.layout = html.Div([
             html.Div([
                 dcc.Slider(
                     id='dt_max',
+                    value=None,
                     max=5.0),
                 dcc.Input(
                     id='dt_max_input',
                     type='number',
-                    max=5.0
+                    max=5.0,
+                    value=None
                 )
             ], style={'columns': 2}),
 
@@ -691,6 +704,14 @@ def get_options(names):
     return [{'label': name, 'value': name} for name in names]
 
 
+def get_options_key(data):
+    return [{'label': data[i], 'value': i} for i in range(len(data))]
+
+
+def get_marks(data):
+    return {str(i): '' for i in range(len(data))}
+
+
 def parse_data(contents, filename):
     content_type, content_string = contents.split(',')
     df = pd.DataFrame()
@@ -722,15 +743,11 @@ def parse_data(contents, filename):
               Output('coherence_2', 'options'),
               Output('schematisation', 'options'),
               Output('traces', 'options'),
-              Output('t_start', 'min'),
-              Output('t_start', 'max'),
-              Output('t_start', 'step'),
-              Output('t_end', 'min'),
-              Output('t_end', 'max'),
-              Output('t_end', 'step'),
+              Output('start_1', 'options'),
+              Output('end_1', 'options'),
               Output('time_range_slider', 'min'),
               Output('time_range_slider', 'max'),
-              Output('time_range_slider', 'step'),
+              Output('time_range_slider', 'marks'),
               Output('dt_max', 'step'),
               Output('dt_max_input', 'step'),
               Input('upload_data', 'contents'),
@@ -738,23 +755,27 @@ def parse_data(contents, filename):
 def upload_file(contents, filename):
     df = pd.DataFrame()
     time_range = ""
+    time = get_options_key([])
+    marks = get_marks([])
     trp = [None, None, None]
     if contents:
         df = loaddata.parse_data(contents, filename)
         cols = df.columns
-        trp = prepare.calc_time_range(df[cols[0]].to_numpy())
+        tm = df[cols[0]].to_numpy()
+        trp = prepare.calc_time_range(tm)
         time_range = f"Time from {trp[0]} to {trp[1]}, mean time step is {trp[2]:.3e}, " \
                      f"time step deviation is {trp[3]:.3e}"
-    options = get_options(df.columns)
+        time = get_options_key(tm)
+        marks = get_marks(tm)
 
+    options = get_options(df.columns)
     return [df.to_json(date_format='iso', orient='split'),
             options[1:], filename, time_range,
             options[1:], options[1:],
             options[1:], options[1:],
             options[1:], options[1:],
-            trp[0], trp[1], trp[2],
-            trp[0], trp[1], trp[2],
-            trp[0], trp[1], trp[2],
+            time, time,
+            0, max(len(marks) - 1, 0), marks,
             trp[2], trp[2]]
 
 
@@ -894,9 +915,8 @@ def set_frequency_est(sldr, inpt):
 @app.callback(Output('dt_max', 'value'),
               Output('dt_max_input', 'value'),
               Input('dt_max', 'value'),
-              Input('dt_max_input', 'value'),
-              Input('t_start', 'step'))
-def set_dt_max(sldr, inpt, dt):
+              Input('dt_max_input', 'value'))
+def set_dt_max(sldr, inpt):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
     new_slider = sldr
@@ -906,9 +926,6 @@ def set_dt_max(sldr, inpt, dt):
         new_input = sldr
     if trigger_id == 'dt_max_input':
         new_slider = inpt
-    if trigger_id == 't_start':
-        new_slider = None
-        new_input = None
     return [new_slider, new_input]
 
 
@@ -922,52 +939,51 @@ def set_dt_max(sldr, inpt, dt):
               Output('segment_len_input', 'max'),
               Output('smoothing_window_schem', 'max'),
               Output('smoothing_window_input_schem', 'max'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step')
+              Input('start_1', 'value'),
+              Input('end_1', 'value'),
+              Input('start_1', 'options')
               )
-def update_smoothing_windows(t_start, t_end, t_min, t_max, t_step):
-    # set time range if None
-    val1 = t_min if t_start is None else t_start
-    val2 = t_max if t_end is None else t_end
-    step = 1.0 if t_step is None else t_step
-    mx = 256
-    if not (None in [val1, val2, t_step]):
-        mx = (val2 - val1) / step
+def update_smoothing_windows(t_start, t_end, time):
+    ctx = dash.callback_context
+    trigger_id, opt = ctx.triggered[0]["prop_id"].split(".")
+    if opt == 'options':
+        ind1 = 0
+        ind2 = max(len(time) - 1, 0)
+    else:
+        ind1 = t_start
+        ind2 = t_end
+
+    mx = max(ind2 - ind1, 6)
     mx2 = int(mx / 2)
     return [mx2, mx2, mx2, mx2, mx2, mx2, mx, mx, mx2, mx2]
 
 
 @app.callback(Output('input_graph', 'figure'),
               Output('time_range_slider', 'value'),
-              Output('t_start', 'value'),
-              Output('t_end', 'value'),
+              Output('start_1', 'value'),
+              Output('end_1', 'value'),
+              Input('start_1', 'options'),
               Input('signal_1', 'value'),
               Input('signal_filter', 'value'),
               Input('smoothing_window', 'value'),
               Input('graph_width', 'value'),
               Input('graph_height', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
+              Input('start_1', 'value'),
+              Input('end_1', 'value'),
               Input('time_range_slider', 'value'),
               Input('graph_lines', 'value'),
-              State('loading_data', 'children'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'))
-def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
-                 t_start, t_end, t_range, mode, loading_data, t_min, t_max, t_step):
+              State('loading_data', 'children'))
+def update_graph(time, signal_1, signal_filter, k, graph_width, graph_height,
+                 t_start, t_end, t_range, mode, loading_data):
     # set time range if None
-    val1 = t_min if t_start is None else t_start
-    val2 = t_max if t_end is None else t_end
-    dt = 0.0 if t_step is None else t_step / 2
+    val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+    val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+
     # update time range if it changes
     ctx = dash.callback_context
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    trigger_id, opt = ctx.triggered[0]["prop_id"].split(".")
 
-    if trigger_id == "t_start" or trigger_id == 't_end':
+    if trigger_id == "start_1" or trigger_id == 'end_1':
         val1 = t_start
         val2 = t_end
     if trigger_id == "time_range_slider":
@@ -978,7 +994,9 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
 
     data = []
     if signal_1:
-        dff = loaddata.select_dff_by_time(loading_data, val1, val2, dt)
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
         cols = dff.columns
         for yy in signal_1:
             data.append(go.Scatter(x=dff[cols[0]], y=dff[yy], mode=gmode, name=yy))
@@ -1003,6 +1021,7 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
 
 
 @app.callback(Output('spectrum_graph', 'figure'),
+              Input('start_1', 'options'),
               Input('spectrum_1', 'value'),
               Input('spectrum_2', 'value'),
               Input('spectrum_filter', 'value'),
@@ -1010,12 +1029,11 @@ def update_graph(signal_1, signal_filter, k, graph_width, graph_height,
               Input('graph_width1', 'value'),
               Input('graph_height1', 'value'),
               Input('spectrum_lines', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
               State('loading_data', 'children'))
-def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_height, mode,
-                 t_start, t_end, t_step, loading_data):
+def update_graph(time, spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_height, mode,
+                 t_start, t_end, loading_data):
     if spectrum_1 == spectrum_2:
         gname = 'power spectral density'
         fig = make_subplots(rows=1, cols=1)
@@ -1025,7 +1043,11 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
 
     if spectrum_1 and spectrum_2:
-        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
         hann_koef = 1.0
 
         if 'SM' in spectrum_filter and not (k is None):
@@ -1036,7 +1058,10 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
             hann_koef = 8.0 / 3
 
         rows, _ = dff.shape
-        f, g_xy = signal.csd(dff[spectrum_1], dff[spectrum_2], (1.0 / t_step), window="boxcar", nperseg=rows)
+        cols = dff.columns
+        tm = dff[cols[0]].to_numpy()
+        trp = prepare.calc_time_range(tm)
+        f, g_xy = signal.csd(dff[spectrum_1], dff[spectrum_2], (1.0 / trp[2]), window="boxcar", nperseg=rows)
         mod, phase = analyse.cross_spectrum_mod_fas(g_xy)
         mod *= hann_koef
 
@@ -1056,7 +1081,6 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
 
 
 @app.callback(Output('coherence_graph', 'figure'),
-              # Output('inspection', 'children'),
               Input('coherence_1', 'value'),
               Input('coherence_2', 'value'),
               Input('coherence_filter', 'value'),
@@ -1065,16 +1089,21 @@ def update_graph(spectrum_1, spectrum_2, spectrum_filter, k, graph_width, graph_
               Input('graph_width2', 'value'),
               Input('graph_height2', 'value'),
               Input('coherence_lines', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'options'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
               State('loading_data', 'children'))
 def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, graph_width, graph_height,
-                 mode, t_start, t_end, t_step, loading_data):
+                 mode, time, t_start, t_end, loading_data):
     data = []
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     if coherence_1 and coherence_2:
-        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
 
         if 'SM' in coherence_filter and not (k is None):
             dff = prepare.set_smoothing_symm(dff, [coherence_1, coherence_2], k, 1)
@@ -1082,8 +1111,11 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
         if 'HW' in coherence_filter:
             dff = prepare.set_correction_hann(dff, [coherence_1, coherence_2])
 
+        cols = dff.columns
+        tm = dff[cols[0]].to_numpy()
+        trp = prepare.calc_time_range(tm)
         f, c_xx = signal.coherence(dff[coherence_1], dff[coherence_2],
-                                   (1.0 / t_step), window="boxcar", nperseg=segment_len)
+                                   (1.0 / trp[2]), window="boxcar", nperseg=segment_len)
 
         data.append(go.Scatter(x=f, y=c_xx, mode=gmode, name='coherence'))
 
@@ -1108,16 +1140,20 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
               Input('graph_height3', 'value'),
               Input('spectrum_lines', 'value'),
               Input('amplitude_width_input', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('loading_data', 'children'))
 def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, graph_height, mode, eps,
-                 t_start, t_end, t_step, loading_data):
+                 t_start, t_end, time, loading_data):
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
     if signal1:
-        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
         cols = dff.columns
         if schem_filter == 'SM' and not (k is None):
             dff = prepare.smoothing_symm(dff, signal1, k, 1)
@@ -1159,17 +1195,21 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
               Input('class_max_input2', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('loading_data', 'children'))
 def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height, eps,
-                 class_min, class_max, class_min2, class_max2, m, code, t_start, t_end, t_step, loading_data):
+                 class_min, class_max, class_min2, class_max2, m, code, t_start, t_end, time, loading_data):
     tbl = [pd.DataFrame()]
     x_title = ''
     y_title = ''
     if signal1:
-        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
         if schem_filter == 'SM' and not (k is None):
             dff = prepare.smoothing_symm(dff, signal1, k, 1)
         if 'MG' in is_merged and not (eps is None):
@@ -1224,12 +1264,12 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
               Input('class_max_input2', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('loading_data', 'children'))
 def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph_height, eps, dt_max,
-                 class_min, class_max, class_min2, class_max2, m, code, t_start, t_end, t_step, loading_data):
+                 class_min, class_max, class_min2, class_max2, m, code, t_start, t_end, time, loading_data):
     fig = go.Figure()
     x_title = ''
     y_title = ''
@@ -1241,7 +1281,11 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
         tbls = [pd.DataFrame() for i in range(len(traces))]
         fig = make_subplots(rows=1, cols=len(traces), subplot_titles=traces, horizontal_spacing=0.25)
         if signal1:
-            dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+            val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+            val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+            time1 = time[val1]['label']
+            time2 = time[val2]['label']
+            dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
             if schem_filter == 'SM' and not (k is None):
                 dff = prepare.smoothing_symm(dff, signal1, k, 1)
             if 'MG' in is_merged and not (eps is None):
@@ -1384,17 +1428,21 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
               Input('signal_1', 'value'),
               Input('signal_filter', 'value'),
               Input('smoothing_window', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
+              Input('start_1', 'value'),
+              Input('end_1', 'value'),
               State('loading_data', 'children'),
-              State('t_start', 'step'))
+              State('start_1', 'options'))
 def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
-                  t_start, t_end, loading_data, t_step):
+                  t_start, t_end, loading_data, time):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_signals':
-        dff = loaddata.select_dff_by_time(loading_data, t_start, t_end, t_step)
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
         export_cols = dff.columns
         if all_check is None or all_check == []:
             dff = dff[[dff.columns[0]] + yy]
@@ -1418,33 +1466,29 @@ def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
               Input('pick_spectrum', 'n_clicks'),
               Input('spectrum_1', 'value'),
               Input('spectrum_2', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
+              Input('start_1', 'value'),
+              Input('end_1', 'value'),
               Input('spectrum_filter', 'value'),
               Input('smoothing_window_spectrum', 'value'),
               State('loading_data', 'children'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'))
+              State('start_1', 'options'))
 def export_cross_spectrum(all_checked, n_clicks, spectrum_1, spectrum_2, t_start, t_end, spectrum_filter, k,
-                          loading_data, t_min, t_max, t_step):
+                          loading_data, time):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_spectrum':
-        dfres = pd.DataFrame()
-        # set time range if None
-        val1 = t_min if t_start is None else t_start
-        val2 = t_max if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+
         smoothing = k if 'SM' in spectrum_filter else -1
         win = "hann" if 'HW' in spectrum_filter else "boxcar"
         if not (loading_data is None):
             df = pd.read_json(loading_data, orient='split')
             if not df.empty:
-                cols = df.columns
-                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-                dff.reset_index(drop=True, inplace=True)
+                dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
                 if all_checked is None or all_checked == []:
                     dfres = pipeline.calc_signals_cross_spectrum(dff, spectrum_1, spectrum_2, smoothing, win)
                 else:
@@ -1461,34 +1505,31 @@ def export_cross_spectrum(all_checked, n_clicks, spectrum_1, spectrum_2, t_start
               Input('pick_coherence', 'n_clicks'),
               Input('coherence_1', 'value'),
               Input('coherence_2', 'value'),
-              Input('t_start', 'value'),
-              Input('t_end', 'value'),
+              Input('start_1', 'value'),
+              Input('end_1', 'value'),
               Input('coherence_filter', 'value'),
               Input('smoothing_window_coherence', 'value'),
               Input('segment_len', 'value'),
               State('loading_data', 'children'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'))
+              State('start_1', 'options'))
 def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t_end, spectrum_filter,
-                     k, npseg, loading_data, t_min, t_max, t_step):
+                     k, npseg, loading_data, time):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_coherence':
         dfres = pd.DataFrame()
         # set time range if None
-        val1 = t_min if t_start is None else t_start
-        val2 = t_max if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
         smoothing = k if 'SM' in spectrum_filter else -1
         win = "hann" if 'HW' in spectrum_filter else "boxcar"
         if loading_data:
             df = pd.read_json(loading_data, orient='split')
             if not df.empty:
-                cols = df.columns
-                dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-                dff.reset_index(drop=True, inplace=True)
+                dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
                 if all_checked is None or all_checked == []:
                     dfres = pipeline.calc_signals_coherence(dff, coherence_1, coherence_2, smoothing, win, npseg)
                 else:
@@ -1507,24 +1548,23 @@ def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t
               Input('schem_sigs_prepare', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('amplitude_width_input', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('loading_data', 'children'))
-def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t_end, t_step, loading_data):
+def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t_end, time, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_cycles':
         sig = pd.DataFrame()
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
         if signal1:
-            df = pd.read_json(loading_data, orient='split')
-            cols = df.columns
-            val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-            val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-            dt = 0.0 if t_step is None else t_step / 2
-            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-            dff.reset_index(drop=True, inplace=True)
+            dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+            cols = dff.columns
             sig = dff[[cols[0], signal1]]
             if schem_filter == 'SM':
                 sig = prepare.smoothing_symm(sig, signal1, k, 1)
@@ -1557,26 +1597,25 @@ def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t
               Input('class_max_input2', 'value'),
               Input('class_number', 'value'),
               Input('corr_table_code', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('loading_data', 'children'))
 def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_max, class_min, class_max,
                  class_min2, class_max2, m, code,
-                 t_start, t_end, t_step, loading_data):
+                 t_start, t_end, time, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'pick_table':
         dff = pd.DataFrame()
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
         if signal1:
-            df = pd.read_json(loading_data, orient='split')
-            cols = df.columns
-            val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-            val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-            dt = 0.0 if t_step is None else t_step / 2
-            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-            dff.reset_index(drop=True, inplace=True)
+            dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+
             if schem_filter == 'SM':
                 dff = prepare.smoothing_symm(dff, signal1, k, 1)
             if 'MG' in is_merged and not (eps is None):
@@ -1627,20 +1666,19 @@ def set_graph_size(traces, w, h):
 
 @app.callback(Output('input_stats', 'children'),
               Input('schematisation', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('loading_data', 'children'))
-def print_input_stats(signal1, t_start, t_end, t_step, loading_data):
+def print_input_stats(signal1, t_start, t_end, time, loading_data):
     inp_str = ''
+
     if signal1:
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
         s_mean, s_variance, s_deviation, s_koef = schematisation.input_stats(dff, signal1)
         inp_str = 'Input statistics: Mean value is {:.3e}, standard deviation is {:.3e}, ' \
                   'irregular coefficient is {:.3e}'.format(s_mean, s_deviation, s_koef)
@@ -1652,20 +1690,20 @@ def print_input_stats(signal1, t_start, t_end, t_step, loading_data):
               Input('schem_sigs_prepare', 'value'),
               Input('amplitude_width_input', 'value'),
               Input('frequency_est', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('loading_data', 'children'))
-def print_max_frequency_estimation(signal1, is_merged, eps, n, t_start, t_end, t_step, loading_data):
+def print_max_frequency_estimation(signal1, is_merged, eps, n, t_start, t_end, time, loading_data):
     inp_str = ''
+
     if signal1:
-        df = pd.read_json(loading_data, orient='split')
-        cols = df.columns
-        val1 = df[cols[0]].iloc[0] if t_start is None else t_start
-        val2 = df[cols[0]].iloc[-1] if t_end is None else t_end
-        dt = 0.0 if t_step is None else t_step / 2
-        dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-        dff.reset_index(drop=True, inplace=True)
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+        cols = dff.columns
         sig = dff[[cols[0], signal1]]
 
         if 'MG' in is_merged:
@@ -1686,19 +1724,13 @@ def print_max_frequency_estimation(signal1, is_merged, eps, n, t_start, t_end, t
               Input('amplitude_width', 'value'),
               Input('amplitude_width_input', 'value'),
               Input('schematisation', 'value'),
-              State('t_start', 'value'),
-              State('t_end', 'value'),
-              State('t_start', 'min'),
-              State('t_start', 'max'),
-              State('t_start', 'step'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
               State('amplitude_width_input', 'max'),
               State('loading_data', 'children'),
               State('schem_sigs', 'value'))
-def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, cur_max, loading_data, current_sigs):
-    # set time range if None
-    val1 = t_min if t_start is None else t_start
-    val2 = t_max if t_end is None else t_end
-    dt = 0.0 if t_step is None else t_step / 2
+def amplitude_filter(sldr, inpt, signal1, t_start, t_end, time, cur_max, loading_data, current_sigs):
 
     # update amplitude filter and input value if signal changed
     ctx = dash.callback_context
@@ -1710,10 +1742,11 @@ def amplitude_filter(sldr, inpt, signal1, t_start, t_end, t_min, t_max, t_step, 
 
     if trigger_id == 'schematisation':
         if signal1 and sldr:
-            df = pd.read_json(loading_data, orient='split')
-            cols = df.columns
-            dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
-            dff.reset_index(drop=True, inplace=True)
+            val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+            val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+            time1 = time[val1]['label']
+            time2 = time[val2]['label']
+            dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
             current_range = dff[signal1].max() - dff[signal1].min()
             current_inpt = current_slider * current_range / 100.0
 
