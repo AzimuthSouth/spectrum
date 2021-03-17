@@ -5,10 +5,30 @@ import io
 
 def parse_data(contents, filename, index=None):
     content_type, content_string = contents.split(',')
+
     decoded = base64.b64decode(content_string)
     df = pd.DataFrame()
+    print('content={}'.format(io.StringIO(decoded.decode('utf-8')).readline()))
+
     if 'txt' in filename:
-        df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), index_col=index)
+        df = universal_upload(contents, index)
+    return df
+
+
+def universal_upload(contents, index=None):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    ln = io.StringIO(decoded.decode('utf-8')).readline()
+    df = pd.DataFrame()
+    if ',' in ln:
+        df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), delimiter=",", index_col=index)
+    if ';' in ln:
+        df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), delimiter=";", index_col=index)
+        cols = df.columns
+        for col in cols:
+            coli = df[col].to_numpy()
+            sf = [float(s.replace(',', '.')) if type(s) == str else s for s in coli]
+            df[col] = sf
     return df
 
 
