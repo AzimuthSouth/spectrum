@@ -685,7 +685,7 @@ app.layout = html.Div([
                 html.Button('Export', id='cdf'),
                 html.A('Export',
                        id='link-cdf',
-                       download="res.txt",
+                       download="cdf.txt",
                        href="",
                        target="_blank",
                        hidden=True,
