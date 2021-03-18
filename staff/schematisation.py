@@ -753,17 +753,18 @@ def cumulative_frequency(classes, data, names, calc_log=False):
     Cumulative distribution function and traces
     :param classes: array of strings with classes intervals
     :param data: cycles counts
-    :param traces: additional parameters values
     :param names: columns names
+    :param calc_log: calc in log10 scale
     :return: dataFrame index=classes points from min to max, columns = cumulative distribution function, traces
     """
     xx = []
-    cdf = [data[0][0]]
+    cdf = [sum(data[0][:])]
     for pnt in classes:
         _, a1 = pnt.split('-')
         xx.append(a1)
-    for dat in data[0][1:]:
-        cdf.append(cdf[-1] + dat)
+    for i in range(len(data[0])):
+        cdf.append(sum(data[0][i + 1:]))
+    print(cdf)
     if calc_log:
         cdf = numpy.log10(cdf)
     df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'CDF'])
