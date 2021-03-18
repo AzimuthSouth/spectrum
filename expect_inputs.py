@@ -663,15 +663,6 @@ app.layout = html.Div([
                 ], style={'columns': 2}),
 
                 html.Hr(),
-                html.Button('Export', id='res1'),
-                html.A('Export',
-                       id='res2',
-                       download="res.txt",
-                       href="",
-                       target="_blank",
-                       hidden=True,
-                       style={'textAlign': 'right'}),
-
                 html.Div([
                     html.Label("Resize graph"),
                     dcc.Slider(
@@ -688,7 +679,37 @@ app.layout = html.Div([
                         value=6,
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None)
+                ], style={'width': '40%'}),
+
+                dcc.Graph(id='integral', style={'width': '100%', 'height': '100%'}),
+                html.Button('Export', id='cdf'),
+                html.A('Export',
+                       id='link-cdf',
+                       download="res.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
+                html.Hr(),
+                html.Div([
+                    html.Label("Resize graph"),
+                    dcc.Slider(
+                        id='graph_width7',
+                        min=1,
+                        max=15,
+                        value=10,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None),
+                    dcc.Slider(
+                        id='graph_height7',
+                        min=1,
+                        max=15,
+                        value=6,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None)
                 ], style={'width': '40%'})
+
+
 
             ])
         ])
@@ -1342,7 +1363,7 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
               Input('cut2_input', 'value'),
               Input('loading_corr', 'children'),
               Input('distribution', 'clickData'),
-              Input('corr_code', 'value'))
+              State('corr_code', 'value'))
 def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_input, loading_data, click_data, code):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -1388,26 +1409,30 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
             if trigger_id == 'distribution':
                 hist1_data = click_data['points'][0]['y']
                 hist2_data = click_data['points'][0]['x']
-                new_cut1 = df.index.get_loc(hist1_data)
+                new_cut1 = df.index.get_loc(hist1_data) + 1
                 new_input1 = new_cut1
-                new_cut2 = df.columns.get_loc(hist2_data)
+                new_cut2 = df.columns.get_loc(hist2_data) + 1
                 new_input2 = new_cut2
 
             if rows * cols > 0:
                 hist1 = df.loc[hist1_data].to_numpy()
                 hist2 = df[hist2_data].to_numpy()
 
+                hist1_range = df.columns.to_numpy()
+                hist2_range = df.index.to_numpy()
+
+                hist1_fix = df.index.to_numpy()[new_cut1 - 1]
+                hist2_fix = df.columns.to_numpy()[new_cut2 - 1]
                 # print('hist1={}'.format(hist1))
                 # print('hist2={}'.format(hist2))
-                classes = np.linspace(1, rows, rows)
                 fig.add_trace(go.Heatmap(x=df.columns, y=df.index, z=df.values, colorscale='gnbu',
                                          colorbar=dict(x=0.395)),
                               row=1, col=1)
-                fig.add_trace(go.Bar(x=classes, y=hist1, marker_color='rgb(8,64,129)',
-                                     name=y_title + '=' + str(new_cut1 + 1)),
+                fig.add_trace(go.Bar(x=hist1_range, y=hist1, marker_color='rgb(8,64,129)',
+                                     name=y_title + '=' + str(hist1_fix)),
                               row=1, col=2)
-                fig.add_trace(go.Bar(x=classes, y=hist2, marker_color='rgb(153,215,186)',
-                                     name=x_title + '=' + str(new_cut2 + 1)),
+                fig.add_trace(go.Bar(x=hist2_range, y=hist2, marker_color='rgb(153,215,186)',
+                                     name=x_title + '=' + str(hist2_fix)),
                               row=2, col=2)
 
         fig.update_layout(xaxis={'title': x_title},
@@ -1419,6 +1444,38 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
         fig.update_xaxes(tickangle=-90)
 
     return [fig, new_cut1, new_input1, new_cut2, new_input2]
+
+
+@app.callback(Output('integral', 'figure'),
+              Input('cut1', 'value'),
+              Input('graph_height7', 'value'),
+              Input('graph_width7', 'value'),
+              Input('loading_corr', 'children'),
+              State('corr_code', 'value'))
+def graph_cumulative_distribution(cut1, graph_height, graph_width, loading_data, code):
+    fig = go.Figure()
+    x_title = 'Range'
+    y_title = 'Cumulative distribution, log'
+    if code == 'MM':
+        pass
+    else:
+        if loading_data:
+            data = json.loads(loading_data)
+            df = pd.read_json(data['cycles'], orient='split')
+            rows, cols = df.shape
+            if rows * cols > 0:
+                hist1_data = df.index[cut1 - 1]
+                hist1 = df.loc[hist1_data].to_numpy()
+                hist1_range = df.columns.to_numpy()
+                dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
+                fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF']))
+                fig.update_yaxes(type='log')
+    fig.update_layout(xaxis={'title': x_title},
+                      yaxis={'title': y_title},
+                      margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                      hovermode='closest', width=150 * graph_width, height=100 * graph_height,
+                      plot_bgcolor='rgb(247,252,240)')
+    return fig
 
 
 @app.callback(Output('link-signals', 'href'),
@@ -1485,14 +1542,13 @@ def export_cross_spectrum(all_checked, n_clicks, spectrum_1, spectrum_2, t_start
 
         smoothing = k if 'SM' in spectrum_filter else -1
         win = "hann" if 'HW' in spectrum_filter else "boxcar"
+        dfres = pd.DataFrame()
         if not (loading_data is None):
-            df = pd.read_json(loading_data, orient='split')
-            if not df.empty:
-                dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
-                if all_checked is None or all_checked == []:
-                    dfres = pipeline.calc_signals_cross_spectrum(dff, spectrum_1, spectrum_2, smoothing, win)
-                else:
-                    dfres = pipeline.calc_set_of_signals_cross_spectrum(dff, smoothing, win)
+            dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+            if all_checked is None or all_checked == []:
+                dfres = pipeline.calc_signals_cross_spectrum(dff, spectrum_1, spectrum_2, smoothing, win)
+            else:
+                dfres = pipeline.calc_set_of_signals_cross_spectrum(dff, smoothing, win)
         csv_string = dfres.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
         return [csv_string, False]
@@ -1623,6 +1679,8 @@ def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_
             else:
                 dff = schematisation.get_extremes(dff, signal1)
             cycles_numbers = schematisation.pick_cycles_point_number_as_df(dff, signal1)
+            if traces is None:
+                traces = []
             cycles = schematisation.calc_cycles_parameters_by_numbers(dff, signal1, cycles_numbers, traces, dt_max)
             if m is None:
                 pass
@@ -1648,6 +1706,37 @@ def export_table(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_
         return [csv_string, False]
     # change something
     return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
+@app.callback(Output('link-cdf', 'href'),
+              Output('link-cdf', 'hidden'),
+              Input('cdf', 'n_clicks'),
+              Input('cut1', 'value'),
+              State('loading_corr', 'children'),
+              State('corr_code', 'value'))
+def export_table(n_clicks, cut1, loading_data, code):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'cdf':
+        if code == 'MR':
+            if loading_data:
+                data = json.loads(loading_data)
+                h = []
+                h_r = []
+                for key in data.keys():
+                    df = pd.read_json(data[key], orient='split')
+                    h_data = df.index[cut1 - 1]
+                    h.append(df.loc[h_data].to_numpy())
+                    h_r.append(df.columns.to_numpy())
+
+                dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), True)
+                csv_string = dff.to_csv(index=False, encoding='utf-8')
+                csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+                return [csv_string, False]
+    # change something
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
 
 
 @app.callback(Output('graph_width6', 'value'),

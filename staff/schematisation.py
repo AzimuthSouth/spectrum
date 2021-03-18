@@ -718,3 +718,55 @@ def calc_cycles_parameters_by_numbers(df_input, name, df_cycles, traces=[], dt=N
         data.append(res)
     df = pandas.DataFrame(data, columns=['Range', 'Count', 'Mean', 'Min', 'Max'] + traces)
     return df
+
+
+def cumulative_frequency_extended(classes, data, names, calc_log=False):
+    """
+    Cumulative distribution function and traces
+    :param classes: array of strings with classes intervals
+    :param data: cycles counts
+    :param traces: additional parameters values
+    :param names: columns names
+    :return: dataFrame index=classes points from min to max, columns = cumulative distribution function, traces
+    """
+    a0, _ = classes[0].split('-')
+    xx = [a0]
+    cdf = [0.0]
+    for pnt in classes:
+        _, a1 = pnt.split('-')
+        xx.append(a1)
+    for dat in data[0]:
+        cdf.append(cdf[-1] + dat)
+    if calc_log:
+        cdf = numpy.log10(cdf)
+    print('xx={}'.format(xx))
+    print('cdf={}'.format(cdf))
+    df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'CDF'])
+    print('zip={}'.format(list(zip(xx, cdf))))
+    for i in range(1, len(names)):
+        df[names[i]] = numpy.concatenate([[data[i][0]], data[i]])
+    return df
+
+
+def cumulative_frequency(classes, data, names, calc_log=False):
+    """
+    Cumulative distribution function and traces
+    :param classes: array of strings with classes intervals
+    :param data: cycles counts
+    :param traces: additional parameters values
+    :param names: columns names
+    :return: dataFrame index=classes points from min to max, columns = cumulative distribution function, traces
+    """
+    xx = []
+    cdf = [data[0][0]]
+    for pnt in classes:
+        _, a1 = pnt.split('-')
+        xx.append(a1)
+    for dat in data[0][1:]:
+        cdf.append(cdf[-1] + dat)
+    if calc_log:
+        cdf = numpy.log10(cdf)
+    df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'CDF'])
+    for i in range(1, len(names)):
+        df[names[i]] = data[i]
+    return df
