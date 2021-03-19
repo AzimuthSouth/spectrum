@@ -184,6 +184,9 @@ def read_data(filename, all_signals):
     curr_dir = os.getcwd()
     df = pd.read_csv(curr_dir + '/' + filename)
     cols = [df.columns[0]] + all_signals
+    all_exists = set([sig in df.columns for sig in all_signals])
+    if len(all_exists) > 1:
+        return "Error! Signal or Trace don't exists in processing file!"
     dff = df[cols]
     return dff
 

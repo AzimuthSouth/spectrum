@@ -114,7 +114,7 @@ def get_merged_extremes(df, name, d):
     if d is None:
         pass
     else:
-        extremes = merge_extremes(all_extremes, name, d)
+        extremes = merge_extremes(extremes, name, d)
     return extremes
 
 
