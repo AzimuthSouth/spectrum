@@ -763,11 +763,14 @@ def cumulative_frequency(classes, data, names, calc_log=False):
         _, a1 = pnt.split('-')
         xx.append(a1)
     for i in range(len(data[0])):
-        cdf.append(sum(data[0][i + 1:]))
+        if sum(data[0][i + 1:]) > 0:
+            cdf.append(sum(data[0][i + 1:]))
+        else:
+            break
     print(cdf)
     if calc_log:
         cdf = numpy.log10(cdf)
     df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'CDF'])
     for i in range(1, len(names)):
-        df[names[i]] = data[i]
+        df[names[i]] = data[i][:len(cdf)]
     return df

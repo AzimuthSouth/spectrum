@@ -30,16 +30,16 @@ def processing(df, load_signals, k, eps):
     :param eps: array of amplitude filter, abs value
     :return:
     """
-    cols = df.columns
-
-    lenghs = [len(load_signals), len(k), len(eps)]
-    if len(lenghs) > 1:
-        print("")
-
+    length = {len(load_signals), len(k), len(eps)}
+    if len(length) > 1:
+        message = "Error! Numbers of processing signals, smoothing parameters and amplitude filters are different."
+        return message
 
     for i in range(len(k)):
-        smooth = prepare.set_smoothing_symm(df, cols[1:], k, 1)
-        extremes = schematisation.get_merged_extremes(smooth, col, eps)
+        smooth = prepare.set_smoothing_symm(df, load_signals[i], k[i], 1)
+        extremes = schematisation.get_merged_extremes(smooth, load_signals[i], eps[i])
+        cycles = schematisation.pick_cycles_as_df(extremes, load_signals[i])
+
 
 
 
