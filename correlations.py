@@ -28,8 +28,7 @@ if __name__ == '__main__':
 
     print(pipeline.check_folders_tree(mode, sigs))
     os.chdir(os.getcwd() + '/' + mode)
-    print(f"Current folder: {os.getcwd()}")
-
+    
     # prepare parameters for processing
     # smoothing window sizes, length of array = number of signals
     k = [2] * len(sigs)
