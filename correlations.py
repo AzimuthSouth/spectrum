@@ -2,6 +2,13 @@ from staff import pipeline
 import os
 import sys
 
+"""
+"""
+
+
+
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     os.chdir(os.path.dirname(sys.argv[1]))
@@ -19,7 +26,8 @@ if __name__ == '__main__':
     print(f"Processing signals: {sigs}")
     print(f"Tracing signals: {add_traces}")
 
-    df = pipeline.read_data(filename, sigs + add_traces)
+    delimiter = ','
+    df = pipeline.read_data(filename, sigs + add_traces, delimiter)
     if type(df) == str:
         print(df)
         exit()
@@ -28,7 +36,7 @@ if __name__ == '__main__':
 
     print(pipeline.check_folders_tree(mode, sigs))
     os.chdir(os.getcwd() + '/' + mode)
-    
+
     # prepare parameters for processing
     # smoothing window sizes, length of array = number of signals
     k = [2] * len(sigs)

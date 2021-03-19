@@ -175,19 +175,26 @@ def calc_correlation_table(df, name, eps, code, m):
     return tbl
 
 
-def read_data(filename, all_signals):
+def read_data(filename, all_signals, delimiter):
     """
     :param filename: processing file
     :param all_signals: load and traces signals
+    :param delimiter: delimiter of the file
     :return: dataFrame of processing signals
     """
     curr_dir = os.getcwd()
-    df = pd.read_csv(curr_dir + '/' + filename)
+    df = pd.read_csv(curr_dir + '/' + filename, delimiter=delimiter)
     cols = [df.columns[0]] + all_signals
     all_exists = set([sig in df.columns for sig in all_signals])
-    if len(all_exists) > 1:
+    if all_exists != {True}:
         return "Error! Some signals or traces don't exists in processing file!"
     dff = df[cols]
+    if delimiter == ';':
+        cols = dff.columns
+        for col in cols:
+            coli = dff[col].to_numpy()
+            sf = [float(s.replace(',', '.')) if type(s) == str else s for s in coli]
+            dff[col] = sf
     return dff
 
 
