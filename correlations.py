@@ -57,9 +57,9 @@ if __name__ == '__main__':
 
     # array of global minimum for Mean & Range,  length of array = number of signals
     class_min1 = [-5.0] * len(sigs)
-    class_min2 = [5.0] * len(sigs)
+    class_min2 = [-5.0] * len(sigs)
     # array of global maximum for Mean & Range, length of array = number of signals
-    class_max1 = [-5.0] * len(sigs)
+    class_max1 = [5.0] * len(sigs)
     class_max2 = [5.0] * len(sigs)
 
     # array of classes count, length of array = number of signals
