@@ -110,9 +110,12 @@ def merge_extremes(df, name, d):
 
 def get_merged_extremes(df, name, d):
     remove_steps = merge(df, name, 0)
-    all_extremes = pick_extremes(remove_steps, name)
-    filt_extremes = merge_extremes(all_extremes, name, d)
-    return filt_extremes
+    extremes = pick_extremes(remove_steps, name)
+    if d is None:
+        pass
+    else:
+        extremes = merge_extremes(all_extremes, name, d)
+    return extremes
 
 
 def get_extremes(df, name):

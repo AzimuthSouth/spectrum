@@ -1461,15 +1461,16 @@ def graph_cumulative_distribution(cut1, graph_height, graph_width, loading_data,
     else:
         if loading_data:
             data = json.loads(loading_data)
-            df = pd.read_json(data['cycles'], orient='split')
-            rows, cols = df.shape
-            if rows * cols > 0:
-                hist1_data = df.index[cut1 - 1]
-                hist1 = df.loc[hist1_data].to_numpy()
-                hist1_range = df.columns.to_numpy()
-                dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
-                fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF']))
-                fig.update_yaxes(type='log')
+            if 'cycles' in list(data.keys()):
+                df = pd.read_json(data['cycles'], orient='split')
+                rows, cols = df.shape
+                if rows * cols > 0:
+                    hist1_data = df.index[cut1 - 1]
+                    hist1 = df.loc[hist1_data].to_numpy()
+                    hist1_range = df.columns.to_numpy()
+                    dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
+                    fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF']))
+                    fig.update_yaxes(type='log')
     fig.update_layout(xaxis={'title': x_title},
                       yaxis={'title': y_title},
                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},

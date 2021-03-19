@@ -43,6 +43,10 @@ def load_and_ave_set(contents, names):
     if len(codes) != 1:
         return [{}, None, ["Different Codes!"], 1.0]
 
+    traces = set([len(parse_data(contents[i], names[i], index=0).index) for i in range(len(names))])
+    if len(traces) != 1:
+        return [{}, None, ["Different Traces!"], 1.0]
+
     df = parse_data(contents[0], names[0], index=0)
     code = df.columns.to_numpy()[0]
     options = df.index.tolist()
