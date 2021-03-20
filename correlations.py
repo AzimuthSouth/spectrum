@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     # array of time for averaging additional tracing parameters, length of array = number of signals
     # None if unconditional averaging
-    dt_max = [0.1] * len(sigs)
+    dt_max = [None] * len(sigs)
 
     # array of global minimum for Mean & Range,  length of array = number of signals
     class_min1 = [-5.0] * len(sigs)

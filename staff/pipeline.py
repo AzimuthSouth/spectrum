@@ -6,6 +6,7 @@ from scipy import signal
 import scipy
 import os
 from pathlib import Path
+import json
 
 
 def calc_set_of_signals_cross_spectrum(df, smoothing, win):
@@ -175,7 +176,7 @@ def calc_correlation_table(df, name, eps, code, m):
     return tbl
 
 
-def read_data(filename, all_signals, delimiter):
+def read_data(filename, all_signals, delimiter=',', ind=None):
     """
     :param filename: processing file
     :param all_signals: load and traces signals
@@ -183,7 +184,7 @@ def read_data(filename, all_signals, delimiter):
     :return: dataFrame of processing signals
     """
     curr_dir = os.getcwd()
-    df = pd.read_csv(curr_dir + '/' + filename, delimiter=delimiter)
+    df = pd.read_csv(curr_dir + '/' + filename, delimiter=delimiter, index_col=ind)
     cols = [df.columns[0]] + all_signals
     all_exists = set([sig in df.columns for sig in all_signals])
     if all_exists != {True}:
@@ -310,3 +311,58 @@ def check_folders_tree(mode, sigs):
     Path(os.getcwd() + '/' + mode).mkdir(parents=True, exist_ok=True)
     [Path(os.getcwd() + '/' + mode + '/' + sig).mkdir(parents=True, exist_ok=True) for sig in sigs]
     return s + "Folder tree is OK\n"
+
+
+def load_ave_files(filenames):
+    # check if all codes are the same
+
+    codes = set([read_data(fn, ['MR'], ind=0).columns.tolist()[0] for fn in filenames])
+    if len(codes) != 1:
+        return [{}, ["Error! Different codes in correlation tables."]]
+
+    traces = set([len(read_data(fn, ['MR'], ind=0).index) for fn in filenames])
+    if len(traces) != 1:
+        return [{}, ["Erroe! Different traces in correlation tables."]]
+
+    df = read_data(filenames[0], ['MR'], ind=0)
+    code = df.columns.to_numpy()[0]
+    options = df.index.tolist()
+    # print('options={}'.format(options))
+    data = {}
+    classes = 1.0
+    for opt in options:
+        dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+        classes, _ = dfi.shape
+        data[opt] = dfi
+
+    for i in range(1, len(filenames)):
+        df = read_data(filenames[i], ['MR'], ind=0)
+        for opt in options:
+            dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+            data[opt] += dfi
+
+    for opt in options:
+        data[opt] /= len(filenames)
+
+    data_str = {}
+    for opt in options:
+        data_str[opt] = data[opt].to_json(date_format='iso', orient='split')
+
+    return [data_str, f"Load and average parameters: {options}"]
+
+
+def calc_kip(data, cut1):
+    h = []
+    h_r = []
+    try:
+        for key in data.keys():
+            df = pd.read_json(data[key], orient='split')
+            h_data = df.index[cut1 - 1]
+            h.append(df.loc[h_data].to_numpy())
+            h_r.append(df.columns.to_numpy())
+        dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), True)
+        return [dff, "Calculation complete. Create file kip.dat in current folder."]
+    except:
+        return [None, "Calculation failed."]
+
+
