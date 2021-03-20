@@ -269,6 +269,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
                                                         lengths[10])
         return message
     try:
+        print(lengths[0])
         for i in range(lengths[0]):
             print(f"Processing signal: {load_signals[i]}")
             table = processing_parameter(df, load_signals[i], k[i], hann[i], eps[i], traces[i], dt_max[i],
@@ -276,7 +277,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
             # export table to folder load_signals[i] (parameter name)
             fname = load_signals[i] + '/' + flight + '.txt'
             table.to_csv(fname, index=True, encoding='utf-8')
-            return "Processing Complete"
+        return "Processing Complete"
     except:
         return "Processing Failed"
 

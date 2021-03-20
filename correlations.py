@@ -18,7 +18,7 @@ if __name__ == '__main__':
     print(f"Current flight: {flight}, current mode: {mode}")
 
     # "replace this strings with processing parameters and traces"
-    sigs = "input"
+    sigs = "input,input1"
     add_traces = "vel,tgag"
 
     sigs = pipeline.get_signals(sigs)
