@@ -402,7 +402,7 @@ def correlation_table(cycles, name1, name2, mmin_set=None, mmax_set=None, count=
         r1 = mmin + w * i
         r2 = mmin + w * (i + 1)
         r = mmin + w * i
-        name_rows.append("{:.2f}-{:.2f}:_{}".format(r1, r2, i + 1))
+        name_rows.append("{:.2f}~{:.2f}:_{}".format(r1, r2, i + 1))
         name_cols.append("{}".format(i + 1))
         # name_rows.append("{:.2f}".format(r2))
         # name_cols.append("{:.2f}".format(r2))
@@ -453,7 +453,7 @@ def correlation_table_with_traces(cycles, name1, name2, traces_names=[], mmin_se
         r1 = mmin + w * i
         r2 = mmin + w * (i + 1)
         r = mmin + w * i
-        name_rows.append("{:.2f}-{:.2f}:     {}".format(r1, r2, i + 1))
+        name_rows.append("{:.2f}~{:.2f}:     {}".format(r1, r2, i + 1))
         name_cols.append("{}".format(i + 1))
         # name_rows.append("{:.2f}".format(r2))
         # name_cols.append("{:.2f}".format(r2))
