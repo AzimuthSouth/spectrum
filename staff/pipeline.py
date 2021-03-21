@@ -2,11 +2,14 @@ import pandas as pd
 from staff import prepare
 from staff import analyse
 from staff import schematisation
+from staff import loaddata
 from scipy import signal
 import scipy
 import os
 from pathlib import Path
+from os import walk
 import json
+import numpy
 
 
 def calc_set_of_signals_cross_spectrum(df, smoothing, win):
@@ -269,7 +272,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
                                                         lengths[10])
         return message
     try:
-        print(lengths[0])
+        # print(lengths[0])
         for i in range(lengths[0]):
             print(f"Processing signal: {load_signals[i]}")
             table = processing_parameter(df, load_signals[i], k[i], hann[i], eps[i], traces[i], dt_max[i],
@@ -301,17 +304,19 @@ def get_signals(s):
 
 def check_folders_tree(mode, sigs):
     s = ''
+    folders = ''
     isdir = os.path.exists(os.getcwd() + '/' + mode)
     if not isdir:
         s += f"Create folder {os.getcwd() + '/' + mode}\n"
     for sig in sigs:
         isdir = os.path.exists(os.getcwd() + '/' + mode + '/' + sig)
+        folders += os.getcwd() + '/' + mode + '/' + sig + '/\n'
         if not isdir:
             s += f"Create folder {os.getcwd() + '/' + mode + '/' + sig}\n"
 
     Path(os.getcwd() + '/' + mode).mkdir(parents=True, exist_ok=True)
     [Path(os.getcwd() + '/' + mode + '/' + sig).mkdir(parents=True, exist_ok=True) for sig in sigs]
-    return s + "Folder tree is OK\n"
+    return [s + "Folder tree is OK\n", folders]
 
 
 def load_ave_files(filenames):
@@ -330,20 +335,36 @@ def load_ave_files(filenames):
     options = df.index.tolist()
     # print('options={}'.format(options))
     data = {}
+    counts_traces = {}
     classes = 1.0
     for opt in options:
         dfi = pd.read_json(df.loc[opt].values[0], orient='split')
         classes, _ = dfi.shape
+        counts = numpy.zeros((classes, classes))
+        for i in range(classes):
+            for j in range(classes):
+                if dfi.values[i][j] > 0:
+                    counts[i][j] += 1
         data[opt] = dfi
+        counts_traces[opt] = counts
 
     for i in range(1, len(filenames)):
         df = read_data(filenames[i], ['MR'], ind=0)
         for opt in options:
             dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+            counts = numpy.zeros((classes, classes))
+            for k in range(classes):
+                for j in range(classes):
+                    if dfi.values[k][j] > 0:
+                        counts[k][j] += 1
             data[opt] += dfi
+            counts_traces[opt] += counts
 
     for opt in options:
-        data[opt] /= len(filenames)
+        for i in range(classes):
+            for j in range(classes):
+                if counts_traces[opt][i][j] > 0:
+                    data[opt].values[i][j] /= counts_traces[opt][i][j]
 
     data_str = {}
     for opt in options:
@@ -367,3 +388,29 @@ def calc_kip(data, cut1):
         return [None, "Calculation failed."]
 
 
+def export_kip(dir):
+    print(dir)
+    curr_dir = os.path.dirname(dir)
+    os.chdir(curr_dir)
+    _, _, filenames = next(walk(curr_dir))
+    filenames = [file for file in filenames if '.txt' in file]
+    print(f"Average files: {filenames}")
+    df, status = load_ave_files(filenames)
+    loading_data = json.dumps(df)
+    print(status)
+
+    try:
+        csv_string = ''
+        if 'cycles' in list(df.keys()):
+            dff = pd.read_json(df['cycles'], orient='split')
+            rows, cols = dff.shape
+            # print(f"rows={rows}, cols={cols}")
+
+            if rows * cols > 0:
+                for i in range(1, rows - 1):
+                    csv_string += loaddata.get_kpi(loading_data, i)
+        f = open("kip.dat", "w")
+        f.write(csv_string)
+        return "Calculation complete. Create file kip.dat in current folder."
+    except:
+        return "Calculation failed."
