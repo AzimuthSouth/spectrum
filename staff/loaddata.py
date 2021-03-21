@@ -1,6 +1,7 @@
 import pandas as pd
 import base64
 import io
+import numpy
 
 
 def parse_data(contents, filename, index=None):
@@ -52,20 +53,36 @@ def load_and_ave_set(contents, names):
     options = df.index.tolist()
     # print('options={}'.format(options))
     data = {}
+    counts_traces = {}
     classes = 1.0
     for opt in options:
         dfi = pd.read_json(df.loc[opt].values[0], orient='split')
         classes, _ = dfi.shape
+        counts = numpy.zeros((classes, classes))
+        for i in range(classes):
+            for j in range(classes):
+                if dfi.values[i][j] > 0:
+                    counts[i][j] += 1
         data[opt] = dfi
+        counts_traces[opt] = counts
 
     for i in range(1, len(names)):
         df = parse_data(contents[i], names[i], index=0)
         for opt in options:
             dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+            counts = numpy.zeros((classes, classes))
+            for k in range(classes):
+                for j in range(classes):
+                    if dfi.values[k][j] > 0:
+                        counts[k][j] += 1
             data[opt] += dfi
+            counts_traces[opt] += counts
 
     for opt in options:
-        data[opt] /= len(names)
+        for i in range(classes):
+            for j in range(classes):
+                if counts_traces[opt][i][j] > 0:
+                    data[opt].values[i][j] /= counts_traces[opt][i][j]
 
     data_str = {}
     for opt in options:
