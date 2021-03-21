@@ -1397,7 +1397,7 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
             rows=2, cols=2,
             specs=[[{"rowspan": 2}, {}],
                    [None, {}]],
-            subplot_titles=("Correlation Table", key, key), horizontal_spacing=0.25)
+            subplot_titles=("Correlation Table", key, 'KIP'), horizontal_spacing=0.25)
         data = json.loads(loading_data)
         df = pd.read_json(data[key], orient='split')
         if df.empty:
@@ -1431,9 +1431,12 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
                 fig.add_trace(go.Bar(x=hist1_range, y=hist1, marker_color='rgb(8,64,129)',
                                      name=y_title + '=' + str(hist1_fix)),
                               row=1, col=2)
-                fig.add_trace(go.Bar(x=hist2_range, y=hist2, marker_color='rgb(153,215,186)',
-                                     name=x_title + '=' + str(hist2_fix)),
-                              row=2, col=2)
+
+                dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
+                fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF'],
+                                         name=y_title + '=' + str(hist1_fix) + '-KIP'), row=2, col=2)
+                fig.update_yaxes(type='log', row=2, col=2)
+
 
         fig.update_layout(xaxis={'title': x_title},
                           yaxis={'title': y_title},
@@ -1441,7 +1444,8 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
                           hovermode='closest', clickmode='event',
                           width=150 * graph_width, height=100 * graph_height,
                           plot_bgcolor='rgb(247,252,240)')
-        fig.update_xaxes(tickangle=-90)
+        fig.update_xaxes(tickangle=-90, row=1, col=1)
+        fig.update_xaxes(tickangle=-90, row=1, col=2)
 
     return [fig, new_cut1, new_input1, new_cut2, new_input2]
 
@@ -1464,12 +1468,15 @@ def graph_cumulative_distribution(cut1, graph_height, graph_width, loading_data,
             if 'cycles' in list(data.keys()):
                 df = pd.read_json(data['cycles'], orient='split')
                 rows, cols = df.shape
+                # print(f"rows={rows}, cols={cols}")
                 if rows * cols > 0:
-                    hist1_data = df.index[cut1 - 1]
-                    hist1 = df.loc[hist1_data].to_numpy()
-                    hist1_range = df.columns.to_numpy()
-                    dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
-                    fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF']))
+                    for i in range(1, rows - 1):
+                        hist1_data = df.index[i]
+                        hist1 = df.loc[hist1_data].to_numpy()
+                        hist1_range = df.columns.to_numpy()
+                        hist1_fix = df.index.to_numpy()[i]
+                        dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
+                        fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF'], name=hist1_fix))
                     fig.update_yaxes(type='log')
     fig.update_layout(xaxis={'title': x_title},
                       yaxis={'title': y_title},

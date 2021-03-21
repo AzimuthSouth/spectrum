@@ -8,7 +8,7 @@ def parse_data(contents, filename, index=None):
 
     decoded = base64.b64decode(content_string)
     df = pd.DataFrame()
-    print('content={}'.format(io.StringIO(decoded.decode('utf-8')).readline()))
+    # print('content={}'.format(io.StringIO(decoded.decode('utf-8')).readline()))
 
     if 'txt' in filename:
         df = universal_upload(contents, index)
