@@ -7,7 +7,6 @@ from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
-import numpy as np
 from staff import prepare
 from staff import analyse
 from staff import schematisation
@@ -16,7 +15,6 @@ from scipy import signal
 from staff import loaddata
 import urllib
 import json
-import os
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -685,7 +683,7 @@ app.layout = html.Div([
                 html.Button('Export', id='cdf'),
                 html.A('Export',
                        id='link-cdf',
-                       download="cdf.txt",
+                       download="kip.txt",
                        href="",
                        target="_blank",
                        hidden=True,
@@ -1437,7 +1435,6 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
                                          name=y_title + '=' + str(hist1_fix) + '-KIP'), row=2, col=2)
                 fig.update_yaxes(type='log', row=2, col=2)
 
-
         fig.update_layout(xaxis={'title': x_title},
                           yaxis={'title': y_title},
                           margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
@@ -1730,16 +1727,16 @@ def export_table(n_clicks, cut1, loading_data, code):
         if code == 'MR':
             if loading_data:
                 data = json.loads(loading_data)
-                h = []
-                h_r = []
-                for key in data.keys():
-                    df = pd.read_json(data[key], orient='split')
-                    h_data = df.index[cut1 - 1]
-                    h.append(df.loc[h_data].to_numpy())
-                    h_r.append(df.columns.to_numpy())
+                csv_string = ''
+                if 'cycles' in list(data.keys()):
+                    df = pd.read_json(data['cycles'], orient='split')
+                    rows, cols = df.shape
+                    # print(f"rows={rows}, cols={cols}")
 
-                dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), True)
-                csv_string = dff.to_csv(index=False, encoding='utf-8')
+                    if rows * cols > 0:
+                        for i in range(1, rows - 1):
+                            csv_string += loaddata.get_kpi(loading_data, i)
+
                 csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
                 return [csv_string, False]
     # change something

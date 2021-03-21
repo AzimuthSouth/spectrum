@@ -538,7 +538,7 @@ def correlation_table_with_traces_2(cycles, name1, name2, traces_names=[], mmin_
     res = numpy.zeros((count, count))
     traces = [numpy.empty((count, count), dtype=list) for i in range(len(traces_names))]
     traces_mean = [numpy.zeros((count, count)) for i in range(len(traces_names))]
-    if w1 == 0 or w2 ==0:
+    if w1 == 0 or w2 == 0:
         res += cycles.iloc[0]['Count']
     for i in range(rows):
         ind1 = 0
@@ -574,7 +574,6 @@ def correlation_table_with_traces_2(cycles, name1, name2, traces_names=[], mmin_
         dff = pandas.DataFrame(traces_mean[j], columns=name_cols, index=name_rows)
         df_traces.append(dff)
     return [df, df_traces]
-
 
 
 def is_between(x, mn, mx):
@@ -728,8 +727,8 @@ def cumulative_frequency_extended(classes, data, names, calc_log=False):
     Cumulative distribution function and traces
     :param classes: array of strings with classes intervals
     :param data: cycles counts
-    :param traces: additional parameters values
     :param names: columns names
+    :param calc_log: calc in log10 scale
     :return: dataFrame index=classes points from min to max, columns = cumulative distribution function, traces
     """
     a0, _ = classes[0].split('-')
@@ -774,7 +773,7 @@ def cumulative_frequency(classes, data, names, calc_log=False):
             break
     if calc_log:
         cdf = numpy.log10(cdf)
-    df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'CDF'])
+    df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'KIP'])
     for i in range(1, len(names)):
         df[names[i]] = data[i][:len(cdf)]
     return df

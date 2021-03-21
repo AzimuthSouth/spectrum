@@ -2,15 +2,12 @@ import pandas as pd
 import base64
 import io
 import numpy
+import json
+from staff import schematisation
 
 
 def parse_data(contents, filename, index=None):
-    content_type, content_string = contents.split(',')
-
-    decoded = base64.b64decode(content_string)
     df = pd.DataFrame()
-    # print('content={}'.format(io.StringIO(decoded.decode('utf-8')).readline()))
-
     if 'txt' in filename:
         df = universal_upload(contents, index)
     return df
@@ -108,3 +105,20 @@ def select_dff_by_time(json_data, t_start=None, t_end=None, t_step=None):
     dff = df[(df[cols[0]] >= (val1 - dt)) & (df[cols[0]] <= (val2 + dt))]
     dff.reset_index(drop=True, inplace=True)
     return dff
+
+
+def get_kpi(loading_data, ind):
+    data = json.loads(loading_data)
+    df = pd.read_json(data['cycles'], orient='split')
+    hist1_fix = df.index.to_numpy()[ind]
+    h = []
+    h_r = []
+    for key in data.keys():
+        df = pd.read_json(data[key], orient='split')
+        h_data = df.index[ind]
+        h.append(df.loc[h_data].to_numpy())
+        h_r.append(df.columns.to_numpy())
+
+    dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), True)
+    csv_string = f"mean={hist1_fix}\n" + dff.to_csv(index=False, encoding='utf-8') + "\n"
+    return csv_string
