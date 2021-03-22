@@ -28,7 +28,6 @@ if __name__ == '__main__':
     f.write(folders)
     os.chdir(os.getcwd() + '/' + mode)
 
-
     status = pipeline.processing_parameters_set(flight, df, sigs, corr_data.k, corr_data.hann, corr_data.eps,
                                                 corr_data.traces, corr_data.dt_max,
                                                 corr_data.class_min1, corr_data.class_max1,
