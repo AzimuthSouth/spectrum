@@ -188,8 +188,10 @@ def read_data(filename, all_signals, delimiter=',', ind=None):
     """
     curr_dir = os.getcwd()
     df = pd.read_csv(curr_dir + '/' + filename, delimiter=delimiter, index_col=ind)
-    cols = [df.columns[0]] + all_signals.split(',')
-    all_exists = set([sig in df.columns for sig in all_signals.split(',')])
+    if type(all_signals) == str:
+        all_signals = all_signals.split(',')
+    cols = [df.columns[0]] + all_signals
+    all_exists = set([sig in df.columns for sig in all_signals])
     if all_exists != {True}:
         return "Error! Some signals or traces don't exists in processing file!"
     dff = df[cols]
