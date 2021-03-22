@@ -188,8 +188,8 @@ def read_data(filename, all_signals, delimiter=',', ind=None):
     """
     curr_dir = os.getcwd()
     df = pd.read_csv(curr_dir + '/' + filename, delimiter=delimiter, index_col=ind)
-    cols = [df.columns[0]] + all_signals
-    all_exists = set([sig in df.columns for sig in all_signals])
+    cols = [df.columns[0]] + all_signals.split(',')
+    all_exists = set([sig in df.columns for sig in all_signals.split(',')])
     if all_exists != {True}:
         return "Error! Some signals or traces don't exists in processing file!"
     dff = df[cols]
@@ -220,13 +220,19 @@ def processing_parameter(df, load_signal, k, hann, eps, traces, dt_max, class_mi
     :param m: classes count
     :return: dataFrame with corrtables
     """
+    ls = get_signal_back(load_signal)
+    l_sig = ls
     if k > 0:
-        df = prepare.set_smoothing_symm(df, [load_signal], k, 1)
+        df = prepare.set_smoothing_symm(df, [ls], k, 1)
+        l_sig += '_smooth'
+
     if hann:
-        df = prepare.set_correction_hann(df, [load_signal])
-    ext = schematisation.get_merged_extremes(df, load_signal, eps)
-    cyc_num = schematisation.pick_cycles_point_number_as_df(ext, load_signal)
-    cycles = schematisation.calc_cycles_parameters_by_numbers(ext, load_signal, cyc_num, traces, dt_max)
+        df = prepare.set_correction_hann(df, [ls])
+        l_sig += '_hann'
+
+    ext = schematisation.get_merged_extremes(df, l_sig, eps)
+    cyc_num = schematisation.pick_cycles_point_number_as_df(ext, l_sig)
+    cycles = schematisation.calc_cycles_parameters_by_numbers(ext, l_sig, cyc_num, traces, dt_max)
     tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces,
                                                           mmin_set1=class_min1,
                                                           mmax_set1=class_max1, mmin_set2=class_min2,
@@ -271,7 +277,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
                                                         lengths[5], lengths[6], lengths[7], lengths[8], lengths[9],
                                                         lengths[10])
         return message
-    try:
+    if True:
         # print(lengths[0])
         for i in range(lengths[0]):
             print(f"Processing signal: {load_signals[i]}")
@@ -281,7 +287,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
             fname = load_signals[i] + '/' + flight + '.txt'
             table.to_csv(fname, index=True, encoding='utf-8')
         return "Processing Complete"
-    except:
+    else:
         return "Processing Failed"
 
 
@@ -300,6 +306,10 @@ def get_signals(s):
     s1 = s.replace('/', u"\u005c")
     s1 = [i for i in s1.split(',') if i != '\n']
     return s1
+
+
+def get_signal_back(s):
+    return s.replace(u"\u005c", '/')
 
 
 def check_folders_tree(mode, sigs):

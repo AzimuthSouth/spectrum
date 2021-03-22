@@ -7,5 +7,5 @@ harmonic.txt
 staff/load_sensors.py
 verification/*.*
 research/*.*
-correlations.py
+corr_data.py
 
