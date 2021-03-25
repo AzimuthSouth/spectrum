@@ -13,6 +13,17 @@ if __name__ == '__main__':
     import corr_data
     # delimiter = corr_data.delimiter
     delimiter = ','
+    flat_traces = []
+    for line in corr_data.traces:
+        for sgnl in line:
+            flat_traces.append(sgnl)
+    traces_set = set(flat_traces)
+    all_traces_defined = set([sig in corr_data.add_traces.split(',') for sig in list(traces_set)])
+    if all_traces_defined != {True}:
+        print("Error! Some signals in array traces don't defined variable add_traces!")
+        exit()
+
+    print(all_traces_defined)
     df = pipeline.read_data(filename, corr_data.sigs + ',' + corr_data.add_traces, delimiter)
     if type(df) == str:
         print(df)
