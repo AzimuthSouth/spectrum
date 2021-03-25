@@ -187,11 +187,15 @@ def read_data(filename, all_signals, delimiter=',', ind=None):
     :return: dataFrame of processing signals
     """
     curr_dir = os.getcwd()
+    print(f"filename={filename}")
+    print(f"all_signals={all_signals}")
+    print(f"delimiter={delimiter}")
+    print(f"ind={ind}")
     df = pd.read_csv(curr_dir + '/' + filename, delimiter=delimiter, index_col=ind)
     if type(all_signals) == str:
         all_signals = all_signals.split(',')
     cols = [df.columns[0]] + all_signals
-    all_exists = set([sig in df.columns for sig in all_signals])
+    all_exists = set([sig in df.columns.to_numpy() for sig in all_signals])
     if all_exists != {True}:
         return "Error! Some signals or traces don't exists in processing file!"
     dff = df[cols]
@@ -231,6 +235,8 @@ def processing_parameter(df, load_signal, k, hann, eps, traces, dt_max, class_mi
     if hann:
         df = prepare.set_correction_hann(df, [ls])
         l_sig += '_hann'
+
+    print(f"traces={traces}")
 
     ext = schematisation.get_merged_extremes(df, l_sig, eps)
     cyc_num = schematisation.pick_cycles_point_number_as_df(ext, l_sig)

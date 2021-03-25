@@ -11,6 +11,7 @@ if __name__ == '__main__':
     flight, mode = pipeline.parse_filename(filename)
     print(f"Current flight: {flight}, current mode: {mode}")
     import corr_data
+    # delimiter = corr_data.delimiter
     delimiter = ','
     df = pipeline.read_data(filename, corr_data.sigs + ',' + corr_data.add_traces, delimiter)
     if type(df) == str:
