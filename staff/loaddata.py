@@ -79,7 +79,8 @@ def load_and_ave_set(contents, names):
         for i in range(classes):
             for j in range(classes):
                 if counts_traces[opt][i][j] > 0:
-                    data[opt].values[i][j] /= counts_traces[opt][i][j]
+                    val = data[opt].values[i][j] / counts_traces[opt][i][j]
+                    data[opt]._set_value(data[opt].index[i], data[opt].columns[j], val)
 
     data_str = {}
     for opt in options:

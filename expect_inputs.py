@@ -1431,7 +1431,7 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
                               row=1, col=2)
 
                 dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
-                fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF'],
+                fig.add_trace(go.Scatter(x=dff['Range'], y=dff['KIP'],
                                          name=y_title + '=' + str(hist1_fix) + '-KIP'), row=2, col=2)
                 fig.update_yaxes(type='log', row=2, col=2)
 
@@ -1473,7 +1473,7 @@ def graph_cumulative_distribution(cut1, graph_height, graph_width, loading_data,
                         hist1_range = df.columns.to_numpy()
                         hist1_fix = df.index.to_numpy()[i]
                         dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
-                        fig.add_trace(go.Scatter(x=dff['Range'], y=dff['CDF'], name=hist1_fix))
+                        fig.add_trace(go.Scatter(x=dff['Range'], y=dff['KIP'], name=hist1_fix))
                     fig.update_yaxes(type='log')
     fig.update_layout(xaxis={'title': x_title},
                       yaxis={'title': y_title},
