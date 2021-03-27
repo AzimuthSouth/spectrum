@@ -316,13 +316,13 @@ def get_signal_back(s):
 
 def check_folders_tree(mode, sigs):
     s = ''
-    folders = ''
+    folders = []
     isdir = os.path.exists(os.getcwd() + '/' + mode)
     if not isdir:
         s += f"Create folder {os.getcwd() + '/' + mode}\n"
     for sig in sigs:
         isdir = os.path.exists(os.getcwd() + '/' + mode + '/' + sig)
-        folders += os.getcwd() + '/' + mode + '/' + sig + '/\n'
+        folders.append(os.getcwd() + '/' + mode + '/' + sig + '/\n')
         if not isdir:
             s += f"Create folder {os.getcwd() + '/' + mode + '/' + sig}\n"
 

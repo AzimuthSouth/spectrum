@@ -23,7 +23,7 @@ if __name__ == '__main__':
         print("Error! Some signals in array traces don't defined variable add_traces!")
         exit()
 
-    print(all_traces_defined)
+    # print(all_traces_defined)
     df = pipeline.read_data(filename, corr_data.sigs + ',' + corr_data.add_traces, delimiter)
     if type(df) == str:
         print(df)
@@ -36,8 +36,22 @@ if __name__ == '__main__':
 
     status, folders = pipeline.check_folders_tree(mode, sigs)
     print(status)
-    f = open(flight + ".dat", 'w')
-    f.write(folders)
+
+    lines = []
+    try:
+        f = open(flight + ".dat", 'r')
+        lines = f.readlines()
+        f.close()
+    except IOError:
+        print(f"Create file {flight}.dat")
+
+    f = open(flight + ".dat", 'a')
+    for folder in folders:
+        if folder in lines:
+            pass
+        else:
+            f.write(folder)
+    f.close()
     os.chdir(os.getcwd() + '/' + mode)
 
     status = pipeline.processing_parameters_set(flight, df, sigs, corr_data.k, corr_data.hann, corr_data.eps,
