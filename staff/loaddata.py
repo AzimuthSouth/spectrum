@@ -120,6 +120,6 @@ def get_kpi(loading_data, ind):
         h.append(df.loc[h_data].to_numpy())
         h_r.append(df.columns.to_numpy())
 
-    dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), True)
+    dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), False)
     csv_string = f"mean={hist1_fix}\n" + dff.to_csv(index=False, encoding='utf-8') + "\n"
     return csv_string

@@ -395,7 +395,7 @@ def calc_kip(data, cut1):
             h_data = df.index[cut1 - 1]
             h.append(df.loc[h_data].to_numpy())
             h_r.append(df.columns.to_numpy())
-        dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), True)
+        dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), False)
         return [dff, "Calculation complete. Create file kip.dat in current folder."]
     except:
         return [None, "Calculation failed."]
