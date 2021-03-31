@@ -511,6 +511,9 @@ app.layout = html.Div([
                 ),
             ], style={'columns': 2}),
 
+            html.Label(id='check_range1', style={'color': 'Green'}),
+            html.Label(id='check_range2', style={'color': 'Green'}),
+
             html.Label("Classes count"),
             html.Div([
                 dcc.Slider(
@@ -715,7 +718,8 @@ app.layout = html.Div([
     ], style={'height': 60}),
 
     html.Div(id='loading_data', style={'display': 'none'}),
-    html.Div(id='loading_corr', style={'display': 'none'})
+    html.Div(id='loading_corr', style={'display': 'none'}),
+    html.Div(id='text_kip', children=json.dumps([]), style={'display': 'none'})
 ])
 
 
@@ -1201,6 +1205,10 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
 
 
 @app.callback(Output('table_map', 'figure'),
+              Output('check_range1', 'children'),
+              Output('check_range2', 'children'),
+              Output('check_range1', 'style'),
+              Output('check_range2', 'style'),
               Input('schematisation', 'value'),
               Input('schem_filter', 'value'),
               Input('schem_sigs_prepare', 'value'),
@@ -1223,6 +1231,9 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
     tbl = [pd.DataFrame()]
     x_title = ''
     y_title = ''
+    check1 = ''
+    check2 = ''
+    style = {'color': 'Green'}
     if signal1:
         val1 = 0 if (t_start == 0) or (t_start is None) else t_start
         val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
@@ -1247,16 +1258,32 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
                                                                      mmax_set2=class_max2, count=m)
                 x_title = 'Min'
                 y_title = 'Max'
+                sig_min1, sig_max1 = cycles['Min'].min(), cycles['Min'].max()
+                sig_min2, sig_max2 = cycles['Max'].min(), cycles['Max'].max()
+                check1 = f"Current signal minimum from {sig_min1} to {sig_max1}, " \
+                         f"classes set from {class_min} to {class_max}"
+                check2 = f"Current signal maximum from {sig_min2} to {sig_max2}, " \
+                         f"classes set from {class_min2} to {class_max2}"
+
+                style = schematisation.check_ranges(sig_min1, sig_max1, sig_min2, sig_max2, class_min,
+                                                    class_max, class_min2, class_max2)
+
             if code == 'MR':
                 tbl = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', mmin_set1=class_min,
                                                                      mmax_set1=class_max, mmin_set2=class_min2,
                                                                      mmax_set2=class_max2, count=m)
                 x_title = 'Range'
                 y_title = 'Mean'
+                sig_min1, sig_max1 = cycles['Mean'].min(), cycles['Mean'].max()
+                sig_min2, sig_max2 = cycles['Range'].min(), cycles['Range'].max()
+                check1 = f"Current signal mean from {sig_min1} to {sig_max1}, " \
+                         f"classes set from {class_min} to {class_max}"
+                check2 = f"Current signal range from {sig_min2} to {sig_max2}, " \
+                         f"classes set from {class_min2} to {class_max2}"
+                style = schematisation.check_ranges(sig_min1, sig_max1, sig_min2, sig_max2, class_min,
+                                                    class_max, class_min2, class_max2)
 
     fig = go.Figure()
-    # fig = px.imshow(tbls[0], color_continuous_scale='GnBu')
-    # fig = make_subplots(cols=1, rows=1, subplot_titles=['Cycles Count'])
     fig.add_trace(go.Heatmap(x=tbl[0].columns, y=tbl[0].index, z=tbl[0].values, colorscale='GnBu'))
 
     fig.update_layout(width=150 * graph_width, height=100 * graph_height,
@@ -1264,7 +1291,7 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
                       xaxis={'title': x_title}, yaxis={'title': y_title})
     fig.update_xaxes(tickangle=-90)
 
-    return fig
+    return [fig, check1, check2, style, style]
 
 
 @app.callback(Output('trace_map', 'figure'),
@@ -1448,39 +1475,64 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
 
 
 @app.callback(Output('integral', 'figure'),
-              Input('cut1', 'value'),
+              Output('text_kip', 'children'),
               Input('graph_height7', 'value'),
               Input('graph_width7', 'value'),
               Input('loading_corr', 'children'),
-              State('corr_code', 'value'))
-def graph_cumulative_distribution(cut1, graph_height, graph_width, loading_data, code):
+              Input('integral', 'clickData'),
+              State('corr_code', 'value'),
+              State('text_kip', 'children'),
+              State('integral', 'figure'))
+def graph_cumulative_distribution(graph_height, graph_width, loading_data, clickdata, code, text, figure):
     fig = go.Figure()
     x_title = 'Range'
     y_title = 'Cumulative distribution, log'
-    if code == 'MM':
-        pass
+    text_new = json.loads(text)
+
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if trigger_id == 'integral':
+        if clickdata is None:
+            pass
+        else:
+            sel = clickdata['points'][0]
+        text_new.append(sel)
+        for i in range(len(figure['data'])):
+            text_labels = schematisation.text_labels(text_new, figure['data'][i], i)
+            fig.add_trace(go.Scatter(x=figure['data'][i]['x'], y=figure['data'][i]['y'],
+                                     name=figure['data'][i]['name'], mode="lines+markers+text", text=text_labels,
+                                     textposition='top right'))
+        fig.update_yaxes(type='log')
+    elif trigger_id == 'loading_corr':
+        if code == 'MM':
+            pass
+        else:
+            if loading_data:
+                data = json.loads(loading_data)
+                if 'cycles' in list(data.keys()):
+                    df = pd.read_json(data['cycles'], orient='split')
+                    rows, cols = df.shape
+
+                    # print(f"rows={rows}, cols={cols}")
+                    if rows * cols > 0:
+                        for i in range(1, rows - 1):
+                            hist1_data = df.index[i]
+                            hist1 = df.loc[hist1_data].to_numpy()
+                            hist1_range = df.columns.to_numpy()
+                            hist1_fix = df.index.to_numpy()[i]
+                            dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
+                            fig.add_trace(go.Scatter(x=dff['Range'], y=dff['KIP'], name=hist1_fix,
+                                                     mode="lines+markers+text", text=[''] * len(dff['Range'])))
+                        fig.update_yaxes(type='log')
     else:
-        if loading_data:
-            data = json.loads(loading_data)
-            if 'cycles' in list(data.keys()):
-                df = pd.read_json(data['cycles'], orient='split')
-                rows, cols = df.shape
-                # print(f"rows={rows}, cols={cols}")
-                if rows * cols > 0:
-                    for i in range(1, rows - 1):
-                        hist1_data = df.index[i]
-                        hist1 = df.loc[hist1_data].to_numpy()
-                        hist1_range = df.columns.to_numpy()
-                        hist1_fix = df.index.to_numpy()[i]
-                        dff = schematisation.cumulative_frequency(hist1_range, [hist1], ['cycles'])
-                        fig.add_trace(go.Scatter(x=dff['Range'], y=dff['KIP'], name=hist1_fix))
-                    fig.update_yaxes(type='log')
+        fig = go.Figure(figure)
     fig.update_layout(xaxis={'title': x_title},
                       yaxis={'title': y_title},
                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
                       hovermode='closest', width=150 * graph_width, height=100 * graph_height,
                       plot_bgcolor='rgb(247,252,240)')
-    return fig
+    return [fig, json.dumps(text_new)]
 
 
 @app.callback(Output('link-signals', 'href'),

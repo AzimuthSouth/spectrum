@@ -778,3 +778,45 @@ def cumulative_frequency(classes, data, names, calc_log=False):
         df[names[i]] = data[i][:len(cdf)]
     return df
 
+
+def check_ranges(sig_min1, sig_max1, sig_min2, sig_max2, class_min1, class_max1, class_min2, class_max2):
+    print(f"min1={sig_min1} max1={sig_max1}")
+
+    style = {'color': 'Green'}
+    if class_min1 is None:
+        pass
+    else:
+        if sig_min1 < class_min1:
+            style = {'color': 'Red'}
+
+    if class_max1 is None:
+        pass
+    else:
+        if sig_max1 > class_max1:
+            style = {'color': 'Red'}
+
+    if class_min2 is None:
+        pass
+    else:
+        if sig_min2 < class_min2:
+            style = {'color': 'Red'}
+
+    if class_max2 is None:
+        pass
+    else:
+        if sig_max2 > class_max2:
+            style = {'color': 'Red'}
+
+    return style
+
+
+def text_labels(selected, trace, curNumber):
+    line = [''] * len(trace['x'])
+    for sel in selected:
+        if sel['curveNumber'] == curNumber:
+            x = float(sel['x'])
+            y = float(sel['y'])
+            st = "({:.2f}, {:.2f})".format(x, y)
+            line[sel['pointNumber']] = st
+    return line
+
