@@ -340,7 +340,7 @@ def load_ave_files(filenames):
 
     traces = set([len(read_data(fn, ['MR'], ind=0).index) for fn in filenames])
     if len(traces) != 1:
-        return [{}, ["Erroe! Different traces in correlation tables."]]
+        return [{}, ["Error! Different traces in correlation tables."]]
 
     df = read_data(filenames[0], ['MR'], ind=0)
     code = df.columns.to_numpy()[0]
@@ -386,6 +386,16 @@ def load_ave_files(filenames):
     return [data_str, f"Load and average parameters: {options}"]
 
 
+def convert_files(filenames):
+    for filename in filenames:
+        df = read_data(filename, ['MR'], ind=0)
+        st = loaddata.convert_corr_table_to_excel(df)
+        f = open(filename.split('.')[0]+".dat", "w")
+        f.write(st)
+        f.close()
+    return f"Converting files: {filenames}. OK."
+
+
 def calc_kip(data, cut1):
     h = []
     h_r = []
@@ -411,6 +421,14 @@ def export_kip(dir):
     df, status = load_ave_files(filenames)
     loading_data = json.dumps(df)
     print(status)
+    status = convert_files(filenames)
+    print(status)
+    ave = pd.DataFrame(df.values(), columns=['MR'], index=df.keys())
+    st = loaddata.convert_corr_table_to_excel(ave)
+    f = open("average.dat", "w")
+    f.write(st)
+    f.close()
+    print("Export average correlation table. OK.")
 
     try:
         csv_string = ''
@@ -424,6 +442,10 @@ def export_kip(dir):
                     csv_string += loaddata.get_kpi(loading_data, i)
         f = open("kip.dat", "w")
         f.write(csv_string)
-        return "Calculation complete. Create file kip.dat in current folder."
+        return "Calculation complete. Convert files. Create files kip.dat and average.dat in current folder."
     except:
         return "Calculation failed."
+
+
+def convert_corr_table(data):
+    pass

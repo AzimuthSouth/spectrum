@@ -123,3 +123,14 @@ def get_kpi(loading_data, ind):
     dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), False)
     csv_string = f"mean={hist1_fix}\n" + dff.to_csv(index=False, encoding='utf-8') + "\n"
     return csv_string
+
+
+def convert_corr_table_to_excel(df):
+    options = df.index.tolist()
+    st = ""
+    for opt in options:
+        st += f"Parameter:{opt}\n"
+        dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+        st += dfi.to_csv(index=True, encoding='utf-8')
+        st += "\n\n"
+    return st
