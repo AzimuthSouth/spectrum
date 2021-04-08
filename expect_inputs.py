@@ -1400,8 +1400,10 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
 
     if trigger_id == 'cut1':
         new_input1 = cut1
+        print(f"cut1={new_cut1}")
     if trigger_id == 'cut1_input':
         new_cut1 = cut1_input
+        print(f"cut1={new_cut1}")
     if trigger_id == 'cut2':
         new_input2 = cut2
     if trigger_id == 'cut2_input':
@@ -1429,7 +1431,7 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
             pass
         else:
             rows, cols = df.shape
-            hist1_data = df.index[cut1 - 1]
+            hist1_data = df.index[new_cut1 - 1]
             hist2_data = df.columns[cut2 - 1]
             if trigger_id == 'distribution':
                 hist1_data = click_data['points'][0]['y']
