@@ -54,6 +54,8 @@ def load_and_ave_set(contents, names):
     classes = 1.0
     for opt in options:
         dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+        for col in dfi.columns:
+            dfi[col] = pd.to_numeric(dfi[col], downcast='float')
         classes, _ = dfi.shape
         counts = numpy.zeros((classes, classes))
         for i in range(classes):
@@ -69,6 +71,8 @@ def load_and_ave_set(contents, names):
         df = parse_data(contents[i], names[i], index=0)
         for opt in options:
             dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+            for col in dfi.columns:
+                dfi[col] = pd.to_numeric(dfi[col], downcast='float')
             counts = numpy.zeros((classes, classes))
             for k in range(classes):
                 for j in range(classes):
