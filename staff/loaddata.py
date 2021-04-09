@@ -116,7 +116,13 @@ def select_dff_by_time(json_data, t_start=None, t_end=None, t_step=None):
     return dff
 
 
-def get_kpi(loading_data, ind):
+def get_kpi(loading_data, ind, code='MR'):
+    if code == 'MR':
+        nm = 'Range'
+        nm1 = 'Mean'
+    else:
+        nm = 'Max'
+        nm1 = 'Min'
     data = json.loads(loading_data)
     df = pd.read_json(data['cycles'], orient='split')
     hist1_fix = df.index.to_numpy()[ind]
@@ -128,8 +134,8 @@ def get_kpi(loading_data, ind):
         h.append(df.loc[h_data].to_numpy())
         h_r.append(df.columns.to_numpy())
 
-    dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), False)
-    csv_string = f"mean={hist1_fix}\n" + dff.to_csv(index=False, encoding='utf-8') + "\n"
+    dff = schematisation.cumulative_frequency(h_r[0], h, list(data.keys()), False, code=nm)
+    csv_string = f"{nm1}={hist1_fix}\n" + dff.to_csv(index=False, encoding='utf-8') + "\n"
     return csv_string
 
 

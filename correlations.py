@@ -24,7 +24,7 @@ if __name__ == '__main__':
         exit()
 
     # print(all_traces_defined)
-    df = pipeline.read_data(filename, corr_data.sigs + ',' + corr_data.add_traces, delimiter)
+    df, _ = pipeline.read_data(filename, corr_data.sigs + ',' + corr_data.add_traces, delimiter)
     if type(df) == str:
         print(df)
         exit()
@@ -57,5 +57,5 @@ if __name__ == '__main__':
     status = pipeline.processing_parameters_set(flight, df, sigs, corr_data.k, corr_data.hann, corr_data.eps,
                                                 corr_data.traces, corr_data.dt_max,
                                                 corr_data.class_min1, corr_data.class_max1,
-                                                corr_data.class_min2, corr_data.class_max2, corr_data.m)
+                                                corr_data.class_min2, corr_data.class_max2, corr_data.m, corr_data.code)
     print(status)

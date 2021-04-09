@@ -1778,7 +1778,7 @@ def export_table(n_clicks, cut1, loading_data, code):
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
     if triggered_id == 'cdf':
-        if code == 'MR':
+        if True: # code == 'MR':
             if loading_data:
                 data = json.loads(loading_data)
                 csv_string = ''
@@ -1942,7 +1942,7 @@ def upload_file(contents, filenames):
               Input('corr_table_code', 'value'))
 def update_labels(code):
     if code == 'MM':
-        return ['max', 'min']
+        return ['min', 'max']
     else:
         return ['mean', 'range']
 

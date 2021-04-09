@@ -750,7 +750,7 @@ def cumulative_frequency_extended(classes, data, names, calc_log=False):
     return df
 
 
-def cumulative_frequency(classes, data, names, calc_log=False):
+def cumulative_frequency(classes, data, names, calc_log=False, code='Range'):
     """
     Cumulative distribution function and traces
     :param classes: array of strings with classes intervals
@@ -773,7 +773,7 @@ def cumulative_frequency(classes, data, names, calc_log=False):
             break
     if calc_log:
         cdf = numpy.log10(cdf)
-    df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'KIP'])
+    df = pandas.DataFrame(list(zip(xx, cdf)), columns=[code, 'KIP'])
     for i in range(1, len(names)):
         df[names[i]] = data[i][:len(cdf)]
     return df

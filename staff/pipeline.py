@@ -179,7 +179,7 @@ def calc_correlation_table(df, name, eps, code, m):
     return tbl
 
 
-def read_data(filename, all_signals, delimiter=',', ind=None):
+def read_data(filename, all_signals, delimiter=',', ind=None, code='MR'):
     """
     :param filename: processing file
     :param all_signals: load and traces signals
@@ -190,8 +190,11 @@ def read_data(filename, all_signals, delimiter=',', ind=None):
     df = pd.read_csv(curr_dir + '/' + filename, delimiter=delimiter, index_col=ind)
     if type(all_signals) == str:
         all_signals = all_signals.split(',')
+    else:
+        code = df.columns.to_numpy()[0]
+        all_signals = []
     cols = [df.columns[0]] + all_signals
-    all_exists = set([sig in df.columns.to_numpy() for sig in all_signals])
+    all_exists = set([sig in df.columns.to_numpy() for sig in cols])
     if all_exists != {True}:
         return "Error! Some signals or traces don't exists in processing file!"
     dff = df[cols]
@@ -201,11 +204,11 @@ def read_data(filename, all_signals, delimiter=',', ind=None):
             coli = dff[col].to_numpy()
             sf = [float(s.replace(',', '.')) if type(s) == str else s for s in coli]
             dff[col] = sf
-    return dff
+    return [dff, code]
 
 
 def processing_parameter(df, load_signal, k, hann, eps, traces, dt_max, class_min1, class_max1,
-                         class_min2, class_max2, m):
+                         class_min2, class_max2, m, code='MR'):
     """
     Processing single parameter
     :param df: dataFrame
@@ -235,19 +238,25 @@ def processing_parameter(df, load_signal, k, hann, eps, traces, dt_max, class_mi
     ext = schematisation.get_merged_extremes(df, l_sig, eps)
     cyc_num = schematisation.pick_cycles_point_number_as_df(ext, l_sig)
     cycles = schematisation.calc_cycles_parameters_by_numbers(ext, l_sig, cyc_num, traces, dt_max)
-    tbls = schematisation.correlation_table_with_traces_2(cycles, 'Mean', 'Range', traces,
+    if code == 'MR':
+        p1 = 'Mean'
+        p2 = 'Range'
+    else:
+        p1 = 'Min'
+        p2 = 'Max'
+    tbls = schematisation.correlation_table_with_traces_2(cycles, p1, p2, traces,
                                                           mmin_set1=class_min1,
                                                           mmax_set1=class_max1, mmin_set2=class_min2,
                                                           mmax_set2=class_max2, count=m)
     data = [tbls[0].to_json(date_format='iso', orient='split')]
     for j in range(len(traces)):
         data.append(tbls[1][j].to_json(date_format='iso', orient='split'))
-    dff = pd.DataFrame(data, columns=['MR'], index=['cycles'] + traces)
+    dff = pd.DataFrame(data, columns=[code], index=['cycles'] + traces)
     return dff
 
 
 def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt_max, class_min1, class_max1,
-                              class_min2, class_max2, m):
+                              class_min2, class_max2, m, code='MR'):
     """
 
     :param flight: flight name
@@ -263,6 +272,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
     :param class_min2: Range global minimum
     :param class_max2: Range global maximum
     :param m: classes counts
+    :param code: table code
     :return:
     """
 
@@ -284,7 +294,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
         for i in range(lengths[0]):
             print(f"Processing signal: {load_signals[i]}")
             table = processing_parameter(df, load_signals[i], k[i], hann[i], eps[i], traces[i], dt_max[i],
-                                         class_min1[i], class_max1[i], class_min2[i], class_max2[i], m[i])
+                                         class_min1[i], class_max1[i], class_min2[i], class_max2[i], m[i], code=code)
             # export table to folder load_signals[i] (parameter name)
             fname = load_signals[i] + '/' + flight + '.txt'
             table.to_csv(fname, index=True, encoding='utf-8')
@@ -333,19 +343,17 @@ def check_folders_tree(mode, sigs):
 
 def load_ave_files(filenames):
     # check if all codes are the same
-
-    codes = set([read_data(fn, ['MR'], ind=0).columns.tolist()[0] for fn in filenames])
+    codes = set([read_data(fn, ['code'], ind=0)[1] for fn in filenames])
     if len(codes) != 1:
         return [{}, ["Error! Different codes in correlation tables."]]
 
-    traces = set([len(read_data(fn, ['MR'], ind=0).index) for fn in filenames])
+    traces = set([len(read_data(fn, ['code'], ind=0)[0].index) for fn in filenames])
     if len(traces) != 1:
         return [{}, ["Error! Different traces in correlation tables."]]
 
-    df = read_data(filenames[0], ['MR'], ind=0)
-    code = df.columns.to_numpy()[0]
+    df, code = read_data(filenames[0], ['code'], ind=0)
     options = df.index.tolist()
-    # print('options={}'.format(options))
+    print('options={}'.format(options))
     data = {}
     counts_traces = {}
     classes = 1.0
@@ -368,7 +376,7 @@ def load_ave_files(filenames):
     # print(f"ct={counts_traces}")
 
     for i in range(1, len(filenames)):
-        df = read_data(filenames[i], ['MR'], ind=0)
+        df, _ = read_data(filenames[i], ['code'], ind=0)
         for opt in options:
             dfi = pd.read_json(df.loc[opt].values[0], orient='split')
             for col in dfi.columns:
@@ -403,12 +411,12 @@ def load_ave_files(filenames):
 
 def convert_files(filenames):
     for filename in filenames:
-        df = read_data(filename, ['MR'], ind=0)
+        df, code = read_data(filename, ['code'], ind=0)
         st = loaddata.convert_corr_table_to_excel(df)
         f = open(filename.split('.')[0]+".dat", "w")
         f.write(st)
         f.close()
-    return f"Converting files: {filenames}. OK."
+    return [f"Converting files: {filenames}. OK.", code]
 
 
 def calc_kip(data, cut1):
@@ -436,9 +444,10 @@ def export_kip(dir):
     df, status = load_ave_files(filenames)
     loading_data = json.dumps(df)
     print(status)
-    status = convert_files(filenames)
+    status, code = convert_files(filenames)
     print(status)
-    ave = pd.DataFrame(df.values(), columns=['MR'], index=df.keys())
+    ave = pd.DataFrame(df.values(), columns=['code'], index=df.keys())
+    # print(df.values())
     st = loaddata.convert_corr_table_to_excel(ave)
     f = open("average.dat", "w")
     f.write(st)
@@ -454,7 +463,8 @@ def export_kip(dir):
 
             if rows * cols > 0:
                 for i in range(1, rows - 1):
-                    csv_string += loaddata.get_kpi(loading_data, i)
+                    csv_string += loaddata.get_kpi(loading_data, i, code)
+
         f = open("kip.dat", "w")
         f.write(csv_string)
         return "Calculation complete. Convert files. Create files kip.dat and average.dat in current folder."
