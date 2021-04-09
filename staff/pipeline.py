@@ -351,33 +351,48 @@ def load_ave_files(filenames):
     classes = 1.0
     for opt in options:
         dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+        for col in dfi.columns:
+            dfi[col] = pd.to_numeric(dfi[col], downcast='float')
+        # print(dfi)
         classes, _ = dfi.shape
         counts = numpy.zeros((classes, classes))
         for i in range(classes):
             for j in range(classes):
-                if True: # dfi.values[i][j] > 0:
+                if opt == 'cycles':
+                    counts[i][j] += 1
+                elif dfi.values[i][j] > 0:
                     counts[i][j] += 1
         data[opt] = dfi
         counts_traces[opt] = counts
+
+    # print(f"ct={counts_traces}")
 
     for i in range(1, len(filenames)):
         df = read_data(filenames[i], ['MR'], ind=0)
         for opt in options:
             dfi = pd.read_json(df.loc[opt].values[0], orient='split')
+            for col in dfi.columns:
+                dfi[col] = pd.to_numeric(dfi[col], downcast='float')
             counts = numpy.zeros((classes, classes))
             for k in range(classes):
                 for j in range(classes):
-                    if True: # dfi.values[k][j] > 0:
+                    if opt == 'cycles':
+                        counts[k][j] += 1
+                    elif dfi.values[k][j] > 0:
                         counts[k][j] += 1
             data[opt] += dfi
             counts_traces[opt] += counts
 
+    # print(f"ct={counts_traces}")
     for opt in options:
         for i in range(classes):
             for j in range(classes):
                 if counts_traces[opt][i][j] > 0:
-                    val = data[opt].values[i][j] / counts_traces[opt][i][j]
+                    # print(f"data={data[opt].values[i][j]}, c={counts_traces[opt][i][j]}")
+                    val = float(data[opt].values[i][j]) / counts_traces[opt][i][j]
+                    # print(f"val={val}")
                     data[opt]._set_value(data[opt].index[i], data[opt].columns[j], val)
+                    # print(f"data={data[opt].values[i][j]}")
 
     data_str = {}
     for opt in options:
