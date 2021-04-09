@@ -355,7 +355,7 @@ def load_ave_files(filenames):
         counts = numpy.zeros((classes, classes))
         for i in range(classes):
             for j in range(classes):
-                if dfi.values[i][j] > 0:
+                if True: # dfi.values[i][j] > 0:
                     counts[i][j] += 1
         data[opt] = dfi
         counts_traces[opt] = counts
@@ -367,7 +367,7 @@ def load_ave_files(filenames):
             counts = numpy.zeros((classes, classes))
             for k in range(classes):
                 for j in range(classes):
-                    if dfi.values[k][j] > 0:
+                    if True: # dfi.values[k][j] > 0:
                         counts[k][j] += 1
             data[opt] += dfi
             counts_traces[opt] += counts
