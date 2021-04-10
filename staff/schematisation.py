@@ -722,6 +722,47 @@ def calc_cycles_parameters_by_numbers(df_input, name, df_cycles, traces=[], dt=N
     return df
 
 
+def calc_cycles_parameters_by_numbers_2(df_input, name, df_cycles, traces=[], dt=None):
+    """
+
+    :param df_input: dataFrame with input signals
+    :param name: input signal name
+    :param df_cycles: dataFrame with cycles point numbers
+    :param traces: array with traces names
+    :param dt: max time interval
+    :return: dataFrame with cycles parameters = 'Range', 'Mean', 'Min', 'Max', 'Count', ['traces_names'], t_begin, t_end
+    """
+    rows, _ = df_cycles.shape
+    cols = df_input.columns
+    data = []
+    for i in range(rows):
+        ind1 = df_cycles['Min_point'][i]
+        ind2 = df_cycles['Max_point'][i]
+        # print('ind1={}, ind2={}'.format(ind1, ind2))
+        c = df_cycles['Count'][i]
+        t1 = df_input[cols[0]][ind1]
+        t2 = df_input[cols[0]][ind2]
+        x1 = df_input[name][ind1]
+        x2 = df_input[name][ind2]
+        res = cycle_parameters(x1, x2, c)
+        for trace in traces:
+            min_ind = min(ind1, ind2)
+            max_ind = max(ind1, ind2)
+            # print('trace={}\n'.format(df_input[trace][min_ind:max_ind + 1]))
+            if (dt is None) or (abs(t2 - t1) < dt):
+                mean_trace = numpy.mean(df_input[trace][min_ind:max_ind + 1])
+            else:
+                mean_trace = numpy.inf
+            res.append(mean_trace)
+        res.append(min(t1, t2))
+        res.append(max(t1, t2))
+        data.append(res)
+
+    df = pandas.DataFrame(data, columns=['Range', 'Count', 'Mean', 'Min', 'Max'] + traces + ['t_begin', 't_end'])
+    return df
+
+
+
 def cumulative_frequency_extended(classes, data, names, calc_log=False):
     """
     Cumulative distribution function and traces
@@ -741,10 +782,10 @@ def cumulative_frequency_extended(classes, data, names, calc_log=False):
         cdf.append(cdf[-1] + dat)
     if calc_log:
         cdf = numpy.log10(cdf)
-    print('xx={}'.format(xx))
-    print('cdf={}'.format(cdf))
+    #print('xx={}'.format(xx))
+    #print('cdf={}'.format(cdf))
     df = pandas.DataFrame(list(zip(xx, cdf)), columns=['Range', 'CDF'])
-    print('zip={}'.format(list(zip(xx, cdf))))
+    #print('zip={}'.format(list(zip(xx, cdf))))
     for i in range(1, len(names)):
         df[names[i]] = numpy.concatenate([[data[i][0]], data[i]])
     return df
@@ -780,7 +821,7 @@ def cumulative_frequency(classes, data, names, calc_log=False, code='Range'):
 
 
 def check_ranges(sig_min1, sig_max1, sig_min2, sig_max2, class_min1, class_max1, class_min2, class_max2):
-    print(f"min1={sig_min1} max1={sig_max1}")
+    #print(f"min1={sig_min1} max1={sig_max1}")
 
     style = {'color': 'Green'}
     if class_min1 is None:

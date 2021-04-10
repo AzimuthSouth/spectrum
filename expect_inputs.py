@@ -1400,18 +1400,18 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
 
     if trigger_id == 'cut1':
         new_input1 = cut1
-        print(f"cut1={new_cut1}")
+        #print(f"cut1={new_cut1}")
     if trigger_id == 'cut1_input':
         new_cut1 = cut1_input
-        print(f"cut1={new_cut1}")
+        #print(f"cut1={new_cut1}")
     if trigger_id == 'cut2':
         new_input2 = cut2
     if trigger_id == 'cut2_input':
         new_cut2 = cut2_input
 
     if code == 'MM':
-        x_title = 'Min'
-        y_title = 'Max'
+        x_title = 'Max'
+        y_title = 'Min'
     else:
         x_title = 'Range'
         y_title = 'Mean'
@@ -1659,15 +1659,18 @@ def export_coherence(all_checked, n_clicks, coherence_1, coherence_2, t_start, t
               Output('link-cycles', 'hidden'),
               Input('pick_cycles', 'n_clicks'),
               Input('schematisation', 'value'),
+              Input('traces', 'value'),
               Input('schem_filter', 'value'),
               Input('schem_sigs_prepare', 'value'),
               Input('smoothing_window_schem', 'value'),
               Input('amplitude_width_input', 'value'),
+              Input('dt_max_input', 'value'),
               State('start_1', 'value'),
               State('end_1', 'value'),
               State('start_1', 'options'),
               State('loading_data', 'children'))
-def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t_end, time, loading_data):
+def export_cycles(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt_max,
+                  t_start, t_end, time, loading_data):
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     # button click
@@ -1688,8 +1691,12 @@ def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps, t_start, t
                 sig = schematisation.get_merged_extremes(sig, signal1, eps)
             else:
                 sig = schematisation.get_extremes(sig, signal1)
-            sig = schematisation.pick_cycles_as_df(sig, signal1)
-        csv_string = sig.to_csv(index=False, encoding='utf-8')
+            cycles_numbers = schematisation.pick_cycles_point_number_as_df(sig, signal1)
+            if traces is None:
+                traces = []
+            cycles = schematisation.calc_cycles_parameters_by_numbers_2(dff, signal1, cycles_numbers, traces, dt_max)
+
+        csv_string = cycles.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
         return [csv_string, False]
     # change something
