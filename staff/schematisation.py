@@ -754,11 +754,11 @@ def calc_cycles_parameters_by_numbers_2(df_input, name, df_cycles, traces=[], dt
             else:
                 mean_trace = numpy.inf
             res.append(mean_trace)
-        res.append(min(t1, t2))
-        res.append(max(t1, t2))
+        res.append(t1)
+        res.append(t2)
         data.append(res)
 
-    df = pandas.DataFrame(data, columns=['Range', 'Count', 'Mean', 'Min', 'Max'] + traces + ['t_begin', 't_end'])
+    df = pandas.DataFrame(data, columns=['Range', 'Count', 'Mean', 'Min', 'Max'] + traces + ['t_min', 't_max'])
     return df
 
 
