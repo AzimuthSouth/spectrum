@@ -1683,7 +1683,9 @@ def export_cycles(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt
         if signal1:
             dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
             cols = dff.columns
-            sig = dff[[cols[0], signal1]]
+            if traces is None:
+                traces = []
+            sig = dff[[cols[0], signal1] + traces]
             if schem_filter == 'SM':
                 sig = prepare.smoothing_symm(sig, signal1, k, 1)
 
@@ -1692,9 +1694,7 @@ def export_cycles(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt
             else:
                 sig = schematisation.get_extremes(sig, signal1)
             cycles_numbers = schematisation.pick_cycles_point_number_as_df(sig, signal1)
-            if traces is None:
-                traces = []
-            cycles = schematisation.calc_cycles_parameters_by_numbers_2(dff, signal1, cycles_numbers, traces, dt_max)
+            cycles = schematisation.calc_cycles_parameters_by_numbers_2(sig, signal1, cycles_numbers, traces, dt_max)
 
         csv_string = cycles.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
