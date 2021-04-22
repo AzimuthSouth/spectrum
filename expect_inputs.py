@@ -1410,8 +1410,8 @@ def update_graph(key, graph_width, graph_height, cut1, cut1_input, cut2, cut2_in
         new_cut2 = cut2_input
 
     if code == 'MM':
-        x_title = 'Max'
-        y_title = 'Min'
+        x_title = 'Min'
+        y_title = 'Max'
     else:
         x_title = 'Range'
         y_title = 'Mean'
