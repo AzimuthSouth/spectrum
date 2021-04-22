@@ -1256,13 +1256,14 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
                 tbl = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', mmin_set1=class_min,
                                                                      mmax_set1=class_max, mmin_set2=class_min2,
                                                                      mmax_set2=class_max2, count=m)
+                print(f"tbl={tbl}")
                 x_title = 'Min'
                 y_title = 'Max'
-                sig_min1, sig_max1 = cycles['Min'].min(), cycles['Min'].max()
-                sig_min2, sig_max2 = cycles['Max'].min(), cycles['Max'].max()
-                check1 = f"Current signal minimum from {sig_min1} to {sig_max1}, " \
+                sig_min1, sig_max1 = cycles['Max'].min(), cycles['Max'].max()
+                sig_min2, sig_max2 = cycles['Min'].min(), cycles['Min'].max()
+                check1 = f"Current signal maximum from {sig_min1} to {sig_max1}, " \
                          f"classes set from {class_min} to {class_max}"
-                check2 = f"Current signal maximum from {sig_min2} to {sig_max2}, " \
+                check2 = f"Current signal minimum from {sig_min2} to {sig_max2}, " \
                          f"classes set from {class_min2} to {class_max2}"
 
                 style = schematisation.check_ranges(sig_min1, sig_max1, sig_min2, sig_max2, class_min,
@@ -1359,7 +1360,7 @@ def update_graph(signal1, traces, schem_filter, is_merged, k, graph_width, graph
                     y_title = 'Mean'
             x_pos = {1: [1.02], 2: [0.395, 1.02]}
             for i in range(len(traces)):
-                ccl = go.Heatmap(x=tbls[1][i].columns, y=tbls[1][i].index, z=tbls[1][i].values,
+                ccl = go.Heatmap(x=tbls[1][i].index, y=tbls[1][i].columns, z=tbls[1][i].values,
                                  colorscale='GnBu', colorbar=dict(x=x_pos[len(traces)][i]))
                 fig.add_trace(ccl, row=1, col=i + 1)
     if traces is None:
@@ -1949,7 +1950,7 @@ def upload_file(contents, filenames):
               Input('corr_table_code', 'value'))
 def update_labels(code):
     if code == 'MM':
-        return ['min', 'max']
+        return ['max', 'min']
     else:
         return ['mean', 'range']
 

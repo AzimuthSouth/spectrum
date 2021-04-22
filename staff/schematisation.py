@@ -513,6 +513,7 @@ def correlation_table_with_traces_2(cycles, name1, name2, traces_names=[], mmin_
     :return: dataFrame with correlation table
     """
     rows, _ = cycles.shape
+
     # set classes width
     mmin1 = cycles[name1].min() if mmin_set1 is None else mmin_set1
     mmax1 = cycles[name1].max() if mmax_set1 is None else mmax_set1

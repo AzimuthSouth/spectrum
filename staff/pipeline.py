@@ -242,12 +242,12 @@ def processing_parameter(df, load_signal, k, hann, eps, traces, dt_max, class_mi
         p1 = 'Mean'
         p2 = 'Range'
     else:
-        p1 = 'Min'
-        p2 = 'Max'
+        p1 = 'Max'
+        p2 = 'Min'
     tbls = schematisation.correlation_table_with_traces_2(cycles, p1, p2, traces,
-                                                          mmin_set1=class_min1,
-                                                          mmax_set1=class_max1, mmin_set2=class_min2,
-                                                          mmax_set2=class_max2, count=m)
+                                                          mmin_set1=class_min2,
+                                                          mmax_set1=class_max2, mmin_set2=class_min1,
+                                                          mmax_set2=class_max1, count=m)
     data = [tbls[0].to_json(date_format='iso', orient='split')]
     for j in range(len(traces)):
         data.append(tbls[1][j].to_json(date_format='iso', orient='split'))
