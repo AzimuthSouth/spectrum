@@ -1,6 +1,7 @@
 from collections import defaultdict
 import math
 import numpy
+import numpy as np
 import pandas
 
 
@@ -632,6 +633,13 @@ def pick_cycles(df, name):
             stack = stack[1:]
 
     return res
+
+
+def reorganize_signal_from_max(df, name):
+    x = df[name].to_numpy()
+    max_index = np.argmax(x)
+    xx = x[max_index:] + x[:max_index]
+    return xx
 
 
 def pick_cycles_point_numbers(df, name):

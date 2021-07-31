@@ -1694,6 +1694,8 @@ def export_cycles(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt
                 sig = schematisation.get_merged_extremes(sig, signal1, eps)
             else:
                 sig = schematisation.get_extremes(sig, signal1)
+
+            print(sig)
             cycles_numbers = schematisation.pick_cycles_point_number_as_df(sig, signal1)
             cycles = schematisation.calc_cycles_parameters_by_numbers_2(sig, signal1, cycles_numbers, traces, dt_max)
 

@@ -238,6 +238,7 @@ def processing_parameter(df, load_signal, k, hann, eps, traces, dt_max, class_mi
     ext = schematisation.get_merged_extremes(df, l_sig, eps)
     cyc_num = schematisation.pick_cycles_point_number_as_df(ext, l_sig)
     cycles = schematisation.calc_cycles_parameters_by_numbers(ext, l_sig, cyc_num, traces, dt_max)
+    cycles2 = schematisation.calc_cycles_parameters_by_numbers_2(ext, l_sig, cyc_num, [], dt_max)
     if code == 'MR':
         p1 = 'Mean'
         p2 = 'Range'
@@ -252,7 +253,7 @@ def processing_parameter(df, load_signal, k, hann, eps, traces, dt_max, class_mi
     for j in range(len(traces)):
         data.append(tbls[1][j].to_json(date_format='iso', orient='split'))
     dff = pd.DataFrame(data, columns=[code], index=['cycles'] + traces)
-    return dff
+    return [dff, cycles2, ext]
 
 
 def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt_max, class_min1, class_max1,
@@ -293,11 +294,16 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
         # print(lengths[0])
         for i in range(lengths[0]):
             print(f"Processing signal: {load_signals[i]}")
-            table = processing_parameter(df, load_signals[i], k[i], hann[i], eps[i], traces[i], dt_max[i],
+            table, cycles, sig = processing_parameter(df, load_signals[i], k[i], hann[i], eps[i], traces[i], dt_max[i],
                                          class_min1[i], class_max1[i], class_min2[i], class_max2[i], m[i], code=code)
             # export table to folder load_signals[i] (parameter name)
             fname = load_signals[i] + '/' + flight + '.txt'
             table.to_csv(fname, index=True, encoding='utf-8')
+            fname = load_signals[i] + '/' + flight + '-merged.txt'
+            sig.to_csv(fname, index=False, encoding='utf-8')
+            fname = load_signals[i] + '/' + flight + '-cycles.txt'
+            cycles = get_full_cycles(cycles)
+            cycles.to_csv(fname, index=False, encoding='utf-8')
         return "Processing Complete"
     else:
         return "Processing Failed"
@@ -471,6 +477,26 @@ def export_kip(dir):
     except:
         return "Calculation failed."
 
+
+def get_full_cycles(df):
+    """
+    Extract cycles with count=1.0 from cycles database and pick max-range cycle with count 0.5
+    :param df: dataFrame of picking cycles
+    :return: data frame with full cycles
+    """
+    dff = df.loc[df['Count'] == 1.0]
+    half = df.loc[df['Count'] == 0.5]
+    max_half = half.loc[half['Range'] == half['Range'].max()]
+    dff = dff.append(max_half)
+    dff.reset_index(drop=True, inplace=True)
+    dff.drop(['Range', 'Mean'], axis=1, inplace=True)
+    cols = ['Min', 'Max', 'Count', 't_min', 't_max']
+    dff = dff[cols]
+    dff['t_begin'] = dff.apply(lambda row: min(row.t_min, row.t_max), axis=1)
+    dff = dff.sort_values(by=['t_begin'], ascending=True)
+    dff.drop('t_begin', axis=1, inplace=True)
+    print(dff)
+    return dff
 
 def convert_corr_table(data):
     pass
