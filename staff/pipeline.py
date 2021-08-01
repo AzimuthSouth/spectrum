@@ -204,6 +204,8 @@ def read_data(filename, all_signals, delimiter=',', ind=None, code='MR'):
             coli = dff[col].to_numpy()
             sf = [float(s.replace(',', '.')) if type(s) == str else s for s in coli]
             dff[col] = sf
+    print(dff)
+    print(code)
     return [dff, code]
 
 
