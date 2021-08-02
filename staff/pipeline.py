@@ -1,3 +1,4 @@
+import pandas
 import pandas as pd
 from staff import prepare
 from staff import analyse
@@ -303,7 +304,7 @@ def processing_parameters_set(flight, df, load_signals, k, hann, eps, traces, dt
             table.to_csv(fname, index=True, encoding='utf-8')
             fname = load_signals[i] + '/' + flight + '-merged.txt'
             sig.to_csv(fname, index=False, encoding='utf-8')
-            fname = load_signals[i] + '/' + flight + '-cycles.txt'
+            fname = load_signals[i] + '/' + flight + '-cycles.csv'
             cycles = get_full_cycles(cycles)
             cycles.to_csv(fname, index=False, encoding='utf-8')
         return "Processing Complete"
@@ -497,8 +498,20 @@ def get_full_cycles(df):
     dff['t_begin'] = dff.apply(lambda row: min(row.t_min, row.t_max), axis=1)
     dff = dff.sort_values(by=['t_begin'], ascending=True)
     dff.drop('t_begin', axis=1, inplace=True)
-    print(dff)
-    return dff
+    #print(dff)
+    vals = dff.to_numpy()
+    #print(vals[0,1])
+    to_export = numpy.zeros((2 * len(vals), 2))
+    #print(to_export)
+    for i in range(len(vals)):
+        to_export[2 * i, 0] = vals[i, 0]
+        to_export[2 * i + 1, 0] = vals[i, 1]
+        to_export[2 * i, 1] = i + 1
+        to_export[2 * i + 1, 1] = i + 1
+    #print(to_export)
+    dff1 = pandas.DataFrame(to_export, columns=['value','cycle'])
+    #print(dff1)
+    return dff1
 
 def convert_corr_table(data):
     pass
