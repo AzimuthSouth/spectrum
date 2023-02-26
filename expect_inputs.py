@@ -4,8 +4,14 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import dash
 from dash.dependencies import Input, Output, State
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# vim:fileencoding=utf-8
+
+
+
+from dash import html
 import pandas as pd
 from staff import prepare
 from staff import analyse
@@ -29,7 +35,7 @@ def mark(i):
 
 
 app.layout = html.Div([
-    html.H4("Spectrum Analysis", style={'text-align': 'center'}),
+    html.H4("Spectrum Analysis Спектральный анализ", style={'text-align': 'center'}),
     html.Hr(),
 
     # html.Label(id='time_range'),
@@ -81,7 +87,9 @@ app.layout = html.Div([
                     min=1,
                     max=300,
                     value=3,
-                    step=1),
+                    step=1,
+		    marks=None
+		),
                 dcc.Input(
                     id='smoothing_window_input',
                     type='number',
@@ -116,14 +124,17 @@ app.layout = html.Div([
                         ), style={'width': '20%'})
 
                 ], style={'width': '100%', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}),
-
+		#'''
                 html.Div([
                     dcc.RangeSlider(
                         id='time_range_slider',
                         step=None,
-                        allowCross=False
+                        allowCross=False,
+			marks=None,
                     )
                 ]),
+		#'''
+		
                 html.Button('Export signals', id='pick_signals'),
                 html.A('Export signals',
                        id='link-signals',
@@ -195,7 +206,9 @@ app.layout = html.Div([
                     min=1,
                     max=300,
                     value=3,
-                    step=1),
+                    step=1,
+		    marks=None
+		),
                 dcc.Input(
                     id='smoothing_window_input_spectrum',
                     type='number',
@@ -277,6 +290,7 @@ app.layout = html.Div([
                     min=1,
                     max=300,
                     value=3,
+		    marks=None,
                     step=1),
                 dcc.Input(
                     id='smoothing_window_input_coherence',
@@ -295,6 +309,7 @@ app.layout = html.Div([
                     min=1,
                     max=5000,
                     value=256,
+		    marks=None,
                     step=1),
                 dcc.Input(
                     id='segment_len_input',
@@ -395,6 +410,7 @@ app.layout = html.Div([
                     min=1,
                     max=300,
                     value=3,
+		    marks=None,
                     step=1),
                 dcc.Input(
                     id='smoothing_window_input_schem',
@@ -428,6 +444,7 @@ app.layout = html.Div([
                     min=1,
                     max=50,
                     value=25,
+		    marks=None,
                     step=1),
                 dcc.Input(
                     id='frequency_est_input',
@@ -518,8 +535,9 @@ app.layout = html.Div([
             html.Div([
                 dcc.Slider(
                     id='class_number',
-                    marks={str(i): str(i) for i in range(1, 101)},
-                    value=10),
+                    marks={str(i): str(i) for i in range(1, 31)},
+                    value=10,
+		    step=None),
                 dcc.Input(
                     id='class_number_input',
                     type='number',
@@ -559,6 +577,7 @@ app.layout = html.Div([
                 dcc.Slider(
                     id='dt_max',
                     value=None,
+		    marks=None,
                     max=5.0),
                 dcc.Input(
                     id='dt_max_input',
@@ -636,6 +655,7 @@ app.layout = html.Div([
                         min=1,
                         max=50,
                         value=2,
+		     	marks=None,
                         step=1),
                     dcc.Input(
                         id='cut1_input',
@@ -652,6 +672,7 @@ app.layout = html.Div([
                         min=1,
                         max=50,
                         value=2,
+			marks=None,
                         step=1),
                     dcc.Input(
                         id='cut2_input',
@@ -907,7 +928,7 @@ def set_class_number(sldr, inpt):
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
     new_slider = sldr
     new_input = inpt
-
+    
     if trigger_id == 'class_number':
         new_input = sldr
     if trigger_id == 'class_number_input':
@@ -1956,7 +1977,6 @@ def update_labels(code):
     else:
         return ['mean', 'range']
 
-
 @app.callback(Output('schem_sigs', 'value'),
               Input('schem_sigs_prepare', 'value'),
               State('schem_sigs', 'value'))
@@ -1970,4 +1990,5 @@ def not_draw_merge(is_merged, sigs):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, port=8000, host='0.0.0.0')
+
