@@ -1182,7 +1182,7 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
               Input('smoothing_window_schem', 'value'),
               Input('graph_width3', 'value'),
               Input('graph_height3', 'value'),
-              Input('spectrum_lines', 'value'),
+              Input('schem_lines', 'value'),
               Input('amplitude_width_input', 'value'),
               State('start_1', 'value'),
               State('end_1', 'value'),
@@ -1190,6 +1190,7 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
               State('loading_data', 'children'))
 def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, graph_height, mode, eps,
                  t_start, t_end, time, loading_data):
+    print(mode)
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
     if signal1:
