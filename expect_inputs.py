@@ -487,6 +487,38 @@ app.layout = html.Div([
                         marks={str(i): str(i) for i in range(1, 16)},
                         step=None)
                 ], style={'width': '40%'})
+            ]),
+
+            html.Div([
+                dcc.Graph(id='damp_graph', style={'width': '100%', 'height': '100%'}),
+                html.Hr(),
+
+                html.Button('Export decrement', id='pick_damp'),
+                html.A('Export decrement',
+                       id='link-damp',
+                       download="damp.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
+
+                html.Div([
+                    html.Label("Resize graph"),
+                    dcc.Slider(
+                        id='graph_width31',
+                        min=1,
+                        max=15,
+                        value=10,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None),
+                    dcc.Slider(
+                        id='graph_height31',
+                        min=1,
+                        max=15,
+                        value=8,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None)
+                ], style={'width': '40%'})
             ])
 
         ]),
@@ -1226,6 +1258,56 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
     return fig
 
 
+@app.callback(Output('damp_graph', 'figure'),
+              Input('schematisation', 'value'),
+              Input('schem_filter', 'value'),
+              Input('schem_sigs', 'value'),
+              Input('schem_sigs_prepare', 'value'),
+              Input('smoothing_window_schem', 'value'),
+              Input('graph_width31', 'value'),
+              Input('graph_height31', 'value'),
+              Input('schem_lines', 'value'),
+              Input('amplitude_width_input', 'value'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
+              State('loading_data', 'children'))
+def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, graph_height, mode, eps,
+                 t_start, t_end, time, loading_data):
+    print(mode)
+    gmode = 'lines+markers' if mode == 'LM' else 'lines'
+    data = []
+    if signal1:
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+
+        if schem_filter == 'SM' and not (k is None):
+            dff = prepare.smoothing_symm(dff, signal1, k, 1)
+
+        dff = schematisation.get_extremes(dff, signal1)
+
+        if 'MG' in is_merged and not (eps is None):
+            dff = schematisation.get_merged_extremes(dff, signal1, eps)
+
+        dff = schematisation.calc_decrements(dff, signal1)
+        cols = dff.columns
+        data.append(go.Scatter(x=dff['x-min'], y=dff['min'], mode=gmode, name='min'))
+        data.append(go.Scatter(x=dff['x-max'], y=dff['max'], mode=gmode, name='max'))
+
+    layout = go.Layout(xaxis={'title': 'Time'},
+                       yaxis={'title': 'Decrement'},
+                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                       hovermode='closest',
+                       width=150 * graph_width, height=100 * graph_height)
+
+    fig = go.Figure(data=data, layout=layout)
+    return fig
+
+
+
 @app.callback(Output('table_map', 'figure'),
               Output('check_range1', 'children'),
               Output('check_range2', 'children'),
@@ -1722,6 +1804,49 @@ def export_cycles(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt
             cycles = schematisation.calc_cycles_parameters_by_numbers_2(sig, signal1, cycles_numbers, traces, dt_max)
 
         csv_string = cycles.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    # change something
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+@app.callback(Output('link-damp', 'href'),
+              Output('link-damp', 'hidden'),
+              Input('pick_damp', 'n_clicks'),
+              Input('schematisation', 'value'),
+              Input('schem_filter', 'value'),
+              Input('schem_sigs_prepare', 'value'),
+              Input('smoothing_window_schem', 'value'),
+              Input('amplitude_width_input', 'value'),
+              State('start_1', 'value'),
+              State('end_1', 'value'),
+              State('start_1', 'options'),
+              State('loading_data', 'children'))
+def export_cycles(n_clicks, signal1, schem_filter, is_merged, k, eps,
+                  t_start, t_end, time, loading_data):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_damp':
+        sig = pd.DataFrame()
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        if signal1:
+            dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+            cols = dff.columns
+            sig = dff[[cols[0], signal1]]
+            if schem_filter == 'SM':
+                sig = prepare.smoothing_symm(sig, signal1, k, 1)
+
+            if 'MG' in is_merged and not (eps is None):
+                sig = schematisation.get_merged_extremes(sig, signal1, eps)
+            else:
+                sig = schematisation.get_extremes(sig, signal1)
+
+            decrements = schematisation.calc_decrements(sig, signal1)
+
+        csv_string = decrements.to_csv(index=False, encoding='utf-8')
         csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
         return [csv_string, False]
     # change something

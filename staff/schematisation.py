@@ -3,6 +3,7 @@ import math
 import numpy
 import numpy as np
 import pandas
+import pandas as pd
 
 
 def merge(df, name, d):
@@ -124,6 +125,31 @@ def get_extremes(df, name):
     all_extremes = pick_extremes(remove_steps, name)
     return all_extremes
 
+def calc_decrements(dff, name):
+    df = get_extremes(dff, name)
+    x = df[name].to_numpy()
+    time = df[df.columns[0]].to_numpy()
+    dec_1 = []
+    dec_2 = []
+    x_1 = []
+    x_2 = []
+    for i in range(1,len(x) - 4,2):
+        dec_1.append(numpy.log(x[i + 2] / x[i]) )
+        x_1.append((time[i + 2] + time[i])/2)
+        dec_2.append(numpy.log(x[i + 3] / x[i + 1]))
+        x_2.append((time[i + 3] + time[i + 1]) / 2)
+    df = pd.DataFrame()
+    if (x[1] > x [0]):
+        df['x-min'] = x_1
+        df['min '] = dec_1
+        df['x-max'] = x_2
+        df['max'] = dec_2
+    else:
+        df['x-min'] = x_2
+        df['min'] = dec_2
+        df['x-max'] = x_1
+        df['max'] = dec_1
+    return df
 
 def average_array(buf):
     res = numpy.zeros(len(buf[0]))
