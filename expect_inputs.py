@@ -167,6 +167,39 @@ app.layout = html.Div([
                         step=None)
                 ], style={'width': '40%', 'display': 'inline-block'})
 
+            ]),
+
+            html.Div([
+                dcc.Graph(id='integr_graph', style={'width': '100%', 'height': '100%'}),
+
+                html.Button('Export integrals', id='pick_integrals'),
+                html.A('Export integrals',
+                       id='link-integrals',
+                       download="integrate.txt",
+                       href="",
+                       target="_blank",
+                       hidden=True,
+                       style={'textAlign': 'right'}),
+
+                html.Hr(),
+                html.Div([
+                    html.Label("Resize graph"),
+                    dcc.Slider(
+                        id='graph_width1_1',
+                        min=1,
+                        max=15,
+                        value=10,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None),
+                    dcc.Slider(
+                        id='graph_height1_1',
+                        min=1,
+                        max=15,
+                        value=8,
+                        marks={str(i): str(i) for i in range(1, 16)},
+                        step=None)
+                ], style={'width': '40%', 'display': 'inline-block'})
+
             ])
 
         ]),
@@ -1096,6 +1129,54 @@ def update_graph(time, signal_1, signal_filter, k, graph_width, graph_height,
     return [fig, [val1, val2], val1, val2]
 
 
+@app.callback(Output('integr_graph', 'figure'),
+              Input('start_1', 'options'),
+              Input('signal_1', 'value'),
+              Input('signal_filter', 'value'),
+              Input('smoothing_window', 'value'),
+              Input('graph_width1_1', 'value'),
+              Input('graph_height1_1', 'value'),
+              Input('start_1', 'value'),
+              Input('end_1', 'value'),
+              Input('time_range_slider', 'value'),
+              Input('graph_lines', 'value'),
+              State('loading_data', 'children'))
+def update_graph(time, signal_1, signal_filter, k, graph_width, graph_height,
+                 t_start, t_end, t_range, mode, loading_data):
+    # set time range if None
+    val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+    val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+
+    gmode = 'lines+markers' if mode == 'LM' else 'lines'
+
+    data = []
+    if signal_1:
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+        cols = dff.columns
+        for yy in signal_1:
+            if 'SM' in signal_filter:
+                dff = prepare.smoothing_symm(dff, yy, k, 1)
+            df = schematisation.calc_integrate(dff, yy)
+            '''
+            if 'HW' in signal_filter:
+                dff = prepare.correction_hann(dff, yy)
+                data.append(go.Scatter(x=dff[cols[0]], y=dff[yy], mode=gmode, name='hann_correction'))
+            '''
+            data.append(go.Scatter(x=df[cols[0]], y=df['i_' + yy], mode=gmode, name='i1_' + yy))
+
+    layout = go.Layout(xaxis={'title': 'Time'},
+                       yaxis={'title': 'Input'},
+                       margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
+                       hovermode='closest',
+                       width=150 * graph_width, height=100 * graph_height)
+
+    fig = go.Figure(data=data, layout=layout)
+
+    return fig
+
+
 @app.callback(Output('spectrum_graph', 'figure'),
               Input('start_1', 'options'),
               Input('spectrum_1', 'value'),
@@ -1222,7 +1303,7 @@ def update_graph(coherence_1, coherence_2, coherence_filter, k, segment_len, gra
               State('loading_data', 'children'))
 def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, graph_height, mode, eps,
                  t_start, t_end, time, loading_data):
-    print(mode)
+    #print(mode)
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
     if signal1:
@@ -1274,7 +1355,7 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
               State('loading_data', 'children'))
 def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, graph_height, mode, eps,
                  t_start, t_end, time, loading_data):
-    print(mode)
+    #print(mode)
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
     if signal1:
@@ -1360,7 +1441,7 @@ def update_graph(signal1, schem_filter, is_merged, k, graph_width, graph_height,
                 tbl = schematisation.correlation_table_with_traces_2(cycles, 'Max', 'Min', mmin_set1=class_min,
                                                                      mmax_set1=class_max, mmin_set2=class_min2,
                                                                      mmax_set2=class_max2, count=m)
-                print(f"tbl={tbl}")
+                #print(f"tbl={tbl}")
                 x_title = 'Min'
                 y_title = 'Max'
                 sig_min1, sig_max1 = cycles['Max'].min(), cycles['Max'].max()
@@ -1681,6 +1762,40 @@ def export_signal(all_check, n_clicks, yy, signal_filter, smoothing,
     return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
 
 
+@app.callback(Output('link-integrals', 'href'),
+              Output('link-integrals', 'hidden'),
+              Input('pick_integrals', 'n_clicks'),
+              Input('signal_1', 'value'),
+              Input('signal_filter', 'value'),
+              Input('smoothing_window', 'value'),
+              Input('start_1', 'value'),
+              Input('end_1', 'value'),
+              State('loading_data', 'children'),
+              State('start_1', 'options'))
+def export_integrals(n_clicks, yy, signal_filter, smoothing,
+                  t_start, t_end, loading_data, time):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # button click
+    if triggered_id == 'pick_integrals':
+        val1 = 0 if (t_start == 0) or (t_start is None) else t_start
+        val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
+        time1 = time[val1]['label']
+        time2 = time[val2]['label']
+        dff = loaddata.select_dff_by_time(loading_data, time1, time2, 0)
+        # request smoothing signals
+        if 'SM' in signal_filter:
+            dff = prepare.set_smoothing_symm(dff, yy, smoothing, 1)
+        csv_string = ''
+        for signal in yy:
+            df = schematisation.calc_integrate(dff, signal)
+            csv_string += df.to_csv(index=False, encoding='utf-8') + '\n'
+        csv_string = "data:text/csv;charset=utf-8,%EF%BB%BF" + urllib.parse.quote(csv_string)
+        return [csv_string, False]
+    # change
+    return ["data:text/csv;charset=utf-8,%EF%BB%BF", True]
+
+
 @app.callback(Output('link-spectrum', 'href'),
               Output('link-spectrum', 'hidden'),
               Input('all_spectrum', 'value'),
@@ -1799,7 +1914,7 @@ def export_cycles(n_clicks, signal1, traces, schem_filter, is_merged, k, eps, dt
             else:
                 sig = schematisation.get_extremes(sig, signal1)
 
-            print(sig)
+            #print(sig)
             cycles_numbers = schematisation.pick_cycles_point_number_as_df(sig, signal1)
             cycles = schematisation.calc_cycles_parameters_by_numbers_2(sig, signal1, cycles_numbers, traces, dt_max)
 

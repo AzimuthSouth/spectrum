@@ -151,6 +151,22 @@ def calc_decrements(dff, name):
         df['max'] = dec_1
     return df
 
+def calc_integrate(df, name):
+    x = df[name].to_numpy()
+    time = df[df.columns[0]].to_numpy()
+    i1 = []
+    sum = 0.0
+    i1.append(sum)
+    for i in range(1, len(x)):
+        sum += (x[i - 1] + x[i]) / 2 * (time [i] - time[i - 1])
+        i1.append(sum)
+    dff = pd.DataFrame()
+    dff[df.columns[0]] = time
+    dff[name] = x
+    dff['i_' + name] = i1
+    return dff
+
+
 def average_array(buf):
     res = numpy.zeros(len(buf[0]))
     for i in range(len(buf)):
