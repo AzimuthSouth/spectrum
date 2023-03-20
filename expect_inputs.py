@@ -1358,6 +1358,8 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
     #print(mode)
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    lbl = [False, True, False, True]
     if signal1:
         val1 = 0 if (t_start == 0) or (t_start is None) else t_start
         val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
@@ -1374,17 +1376,24 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
             dff = schematisation.get_merged_extremes(dff, signal1, eps)
 
         dff = schematisation.calc_decrements(dff, signal1)
+
         cols = dff.columns
-        data.append(go.Scatter(x=dff['x-min'], y=dff['min'], mode=gmode, name='min'))
-        data.append(go.Scatter(x=dff['x-max'], y=dff['max'], mode=gmode, name='max'))
+        data.append(go.Bar(x=dff['x-min'], y=dff['min'], name='min', yaxis='y', offsetgroup=1))
+        data.append(go.Bar(x=dff['x-min'], y=dff['f-min'], name='f-min', yaxis='y2', offsetgroup=3))
+        data.append(go.Bar(x=dff['x-max'], y=dff['max'], name='max', yaxis='y', offsetgroup=2))
+        data.append(go.Bar(x=dff['x-max'], y=dff['f-max'], name='f-max', yaxis='y2', offsetgroup=4))
+
 
     layout = go.Layout(xaxis={'title': 'Time'},
                        yaxis={'title': 'Decrement'},
+                       yaxis2={'title': 'Frequency', 'overlaying': 'y', 'side': 'right'},
                        margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
                        hovermode='closest',
-                       width=150 * graph_width, height=100 * graph_height)
+                       width=150 * graph_width, height=100 * graph_height,
+                       barmode='group')
 
     fig = go.Figure(data=data, layout=layout)
+
     return fig
 
 

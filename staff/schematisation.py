@@ -133,22 +133,30 @@ def calc_decrements(dff, name):
     dec_2 = []
     x_1 = []
     x_2 = []
+    f_1 = []
+    f_2 = []
     for i in range(1,len(x) - 4,2):
-        dec_1.append(numpy.log(x[i + 2] / x[i]) )
+        dec_1.append(-numpy.log(x[i + 2] / x[i]) )
         x_1.append((time[i + 2] + time[i])/2)
-        dec_2.append(numpy.log(x[i + 3] / x[i + 1]))
+        f_1.append(1.0 / (time[i + 2] - time[i]))
+        dec_2.append(-numpy.log(x[i + 3] / x[i + 1]))
         x_2.append((time[i + 3] + time[i + 1]) / 2)
+        f_2.append(1.0 / (time[i + 3] - time[i + 1]))
     df = pd.DataFrame()
     if (x[1] > x [0]):
         df['x-min'] = x_1
         df['min '] = dec_1
+        df['f-min'] = f_1
         df['x-max'] = x_2
         df['max'] = dec_2
+        df['f-max'] = f_2
     else:
         df['x-min'] = x_2
         df['min'] = dec_2
+        df['f-min'] = f_2
         df['x-max'] = x_1
         df['max'] = dec_1
+        df['f-max'] = f_1
     return df
 
 def calc_integrate(df, name):
