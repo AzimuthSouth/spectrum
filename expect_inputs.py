@@ -35,7 +35,7 @@ def mark(i):
 
 
 app.layout = html.Div([
-    html.H4("Spectrum Analysis Спектральный анализ", style={'text-align': 'center'}),
+    html.H4("Spectrum Analysis", style={'text-align': 'center'}),
     html.Hr(),
 
     # html.Label(id='time_range'),
@@ -1358,8 +1358,12 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
     #print(mode)
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig = make_subplots(rows=4, cols=1,
+                        subplot_titles=("Decrement","Frequency", "Decrement", 'Frequency'))
     lbl = [False, True, False, True]
+    print('signal')
+    print(signal1)
     if signal1:
         val1 = 0 if (t_start == 0) or (t_start is None) else t_start
         val2 = max(len(time) - 1, 0) if (t_end == 0) or (t_end is None) else t_end
@@ -1376,23 +1380,26 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
             dff = schematisation.get_merged_extremes(dff, signal1, eps)
 
         dff = schematisation.calc_decrements(dff, signal1)
+        print(dff)
+        fig.add_trace(go.Bar(x=dff['x-min'], y=dff['min'], name='min'), row=1, col=1)
+        fig.add_trace(go.Bar(x=dff['x-min'], y=dff['f-min'], name='f-min'), row=2, col=1)
+        fig.add_trace(go.Bar(x=dff['x-max'], y=dff['max'], name='max'), row=3, col=1)
+        fig.add_trace(go.Bar(x=dff['x-max'], y=dff['f-max'], name='f-max'), row=4, col=1)
 
-        cols = dff.columns
-        data.append(go.Bar(x=dff['x-min'], y=dff['min'], name='min', yaxis='y', offsetgroup=1))
-        data.append(go.Bar(x=dff['x-min'], y=dff['f-min'], name='f-min', yaxis='y2', offsetgroup=3))
-        data.append(go.Bar(x=dff['x-max'], y=dff['max'], name='max', yaxis='y', offsetgroup=2))
-        data.append(go.Bar(x=dff['x-max'], y=dff['f-max'], name='f-max', yaxis='y2', offsetgroup=4))
+        #data.append(go.Bar(x=dff['x-min'], y=dff['min'], name='min', yaxis='y', offsetgroup=1))
+        #data.append(go.Bar(x=dff['x-min'], y=dff['f-min'], name='f-min', yaxis='y2', offsetgroup=3))
+        #data.append(go.Bar(x=dff['x-max'], y=dff['max'], name='max', yaxis='y', offsetgroup=2))
+        #data.append(go.Bar(x=dff['x-max'], y=dff['f-max'], name='f-max', yaxis='y2', offsetgroup=4))
 
 
     layout = go.Layout(xaxis={'title': 'Time'},
-                       yaxis={'title': 'Decrement'},
-                       yaxis2={'title': 'Frequency', 'overlaying': 'y', 'side': 'right'},
                        margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
                        hovermode='closest',
                        width=150 * graph_width, height=100 * graph_height,
-                       barmode='group')
+                       )
 
-    fig = go.Figure(data=data, layout=layout)
+    fig.update_layout(layout)
+
 
     return fig
 

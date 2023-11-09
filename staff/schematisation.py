@@ -145,7 +145,7 @@ def calc_decrements(dff, name):
     df = pd.DataFrame()
     if (x[1] > x [0]):
         df['x-min'] = x_1
-        df['min '] = dec_1
+        df['min'] = dec_1
         df['f-min'] = f_1
         df['x-max'] = x_2
         df['max'] = dec_2
