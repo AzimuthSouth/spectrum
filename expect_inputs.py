@@ -1055,7 +1055,7 @@ def set_dt_max(sldr, inpt):
 def update_smoothing_windows(t_start, t_end, time):
     ctx = dash.callback_context
     trigger_id, opt = ctx.triggered[0]["prop_id"].split(".")
-    if opt == 'options':
+    if opt == 'options' or opt == 'value':
         ind1 = 0
         ind2 = max(len(time) - 1, 0)
     else:
