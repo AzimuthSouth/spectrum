@@ -1355,13 +1355,12 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
               State('loading_data', 'children'))
 def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, graph_height, mode, eps,
                  t_start, t_end, time, loading_data):
-    #print(mode)
+    #print(mode)], []
     gmode = 'lines+markers' if mode == 'LM' else 'lines'
     data = []
     # fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig = make_subplots(rows=4, cols=1,
+    fig = make_subplots(rows=4, cols=2,
                         subplot_titles=("Decrement","Frequency", "Decrement", 'Frequency'))
-    lbl = [False, True, False, True]
     print('signal')
     print(signal1)
     if signal1:
@@ -1391,13 +1390,15 @@ def update_graph(signal1, schem_filter, schem_sigs, is_merged, k, graph_width, g
         #data.append(go.Bar(x=dff['x-max'], y=dff['max'], name='max', yaxis='y', offsetgroup=2))
         #data.append(go.Bar(x=dff['x-max'], y=dff['f-max'], name='f-max', yaxis='y2', offsetgroup=4))
 
-
     layout = go.Layout(xaxis={'title': 'Time'},
                        margin={'l': 40, 'b': 40, 't': 50, 'r': 50},
                        hovermode='closest',
                        width=150 * graph_width, height=100 * graph_height,
                        )
 
+    fig.update_xaxes(title_text="Time", row=2, col=1)
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    fig.update_xaxes(title_text="Time", row=4, col=1)
     fig.update_layout(layout)
 
 
